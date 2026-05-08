@@ -21,10 +21,13 @@
 
       <div class="hero-grid">
         <div class="hero-copy">
-          <p class="eyebrow">Career fit diagnostic</p>
+          <p class="eyebrow">Career reflection tool</p>
           <h1>What type of designer are you becoming?</h1>
           <p class="hero-copy__lead">
-            A short workshop test for mapping your instincts across research, product, interaction, systems, and code.
+            Map your current instincts across product, UX, interaction, research, systems, code, human factors, and content design.
+          </p>
+          <p class="helper-copy">
+            Directional, not diagnostic. Use this to decide what to learn, what to build, and which roles to explore next.
           </p>
           <div class="hero-actions">
             <button class="button button--primary" id="start-button" type="button">Start the test</button>
@@ -33,22 +36,14 @@
         </div>
 
         <aside class="type-orbit" aria-label="Designer type preview">
-          <div class="orbit-card orbit-card--research">
-            <span>Researcher</span>
-            <strong>Evidence</strong>
-          </div>
-          <div class="orbit-card orbit-card--product">
-            <span>Product</span>
-            <strong>Direction</strong>
-          </div>
-          <div class="orbit-card orbit-card--systems">
-            <span>Systems</span>
-            <strong>Structure</strong>
-          </div>
-          <div class="orbit-card orbit-card--technology">
-            <span>Technologist</span>
-            <strong>Build</strong>
-          </div>
+          <div class="orbit-card orbit-card--product"><span>Product</span><strong>Direction</strong></div>
+          <div class="orbit-card orbit-card--ux"><span>UX</span><strong>Flows</strong></div>
+          <div class="orbit-card orbit-card--interaction"><span>Interaction</span><strong>Behavior</strong></div>
+          <div class="orbit-card orbit-card--research"><span>Research</span><strong>Evidence</strong></div>
+          <div class="orbit-card orbit-card--systems"><span>Systems</span><strong>Scale</strong></div>
+          <div class="orbit-card orbit-card--technology"><span>Technology</span><strong>Build</strong></div>
+          <div class="orbit-card orbit-card--human"><span>Human Factors</span><strong>Safety</strong></div>
+          <div class="orbit-card orbit-card--content"><span>Content</span><strong>Clarity</strong></div>
         </aside>
       </div>
     </section>
@@ -58,6 +53,7 @@
         <div>
           <p class="eyebrow">Question <span id="question-number">1</span> of <span id="question-total">1</span></p>
           <h2 id="question-text">Question text</h2>
+          <p class="dimension-pill" id="question-dimension"></p>
         </div>
         <div class="progress-meter" aria-hidden="true">
           <span id="progress-bar"></span>
@@ -75,24 +71,33 @@
     </section>
 
     <section class="result-card" id="result-card" hidden>
-      <p class="eyebrow">Your closest match</p>
+      <p class="eyebrow" id="result-eyebrow">Primary lean</p>
       <div class="result-layout">
         <div>
           <h2 id="result-title">Designer Type</h2>
           <p class="result-summary" id="result-summary">Result summary.</p>
+          <div class="result-block" id="secondary-result" hidden></div>
+          <div class="result-block" id="dimension-summary"></div>
+          <div class="result-block" id="next-steps"></div>
+          <p class="helper-copy">This is a reflection tool, not a hiring screen or fixed identity.</p>
           <div class="result-actions">
             <button class="button button--primary" id="restart-button" type="button">Retake</button>
             <a class="button button--secondary" href="#type-preview">Compare types</a>
           </div>
         </div>
-        <div class="score-stack" id="score-stack" aria-label="Type score comparison"></div>
+
+        <aside class="score-panel" aria-labelledby="score-panel-title">
+          <p class="eyebrow" id="score-panel-title">Current alignment</p>
+          <p class="score-panel__note">Scores are normalized to 0-100. Treat nearby roles as useful adjacent paths, not wrong answers.</p>
+          <div class="score-stack" id="score-stack" aria-label="Type score comparison"></div>
+        </aside>
       </div>
     </section>
 
     <section class="type-preview" id="type-preview">
       <div class="section-heading">
         <p class="eyebrow">Possible outcomes</p>
-        <h2>Five design-adjacent directions.</h2>
+        <h2>Eight design-adjacent directions.</h2>
       </div>
       <div class="type-grid" id="type-grid"></div>
     </section>
