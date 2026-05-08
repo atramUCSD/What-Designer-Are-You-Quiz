@@ -31,12 +31,11 @@ Each question uses a 1-5 answer scale and can add weighted points to any type:
 
 ## GitHub Pages
 
-Recommended setup:
+Current setup:
 
-1. Push this repository to GitHub.
-2. In GitHub, go to `Settings -> Pages`.
-3. Set the source to `GitHub Actions`.
-4. The included workflow will deploy the static app from the repository root.
+1. The static app is committed on `main`.
+2. The same static app is published to the `gh-pages` branch.
+3. GitHub Pages serves the project site from that branch.
 
 If hosted from the repository root, the entry point is:
 
