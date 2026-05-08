@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>What Type of Designer Are You?</title>
+  <link rel="stylesheet" href="styles.css">
+  <script src="questions.js" defer></script>
+  <script src="app.js" defer></script>
+</head>
+<body>
+  <main class="quiz-shell">
+    <section class="intro-panel" id="intro-panel">
+      <nav class="topbar" aria-label="Workshop">
+        <a class="brand" href="#intro-panel" aria-label="Designer Type Test home">
+          <span class="brand__mark" aria-hidden="true"></span>
+          <span>Designer Type Test</span>
+        </a>
+        <span class="topbar__meta">UCSD CSSA Workshop</span>
+      </nav>
+
+      <div class="hero-grid">
+        <div class="hero-copy">
+          <p class="eyebrow">Career fit diagnostic</p>
+          <h1>What type of designer are you becoming?</h1>
+          <p class="hero-copy__lead">
+            A short workshop test for mapping your instincts across research, product, interaction, systems, and code.
+          </p>
+          <div class="hero-actions">
+            <button class="button button--primary" id="start-button" type="button">Start the test</button>
+            <a class="button button--secondary" href="#type-preview">View possible types</a>
+          </div>
+        </div>
+
+        <aside class="type-orbit" aria-label="Designer type preview">
+          <div class="orbit-card orbit-card--research">
+            <span>Researcher</span>
+            <strong>Evidence</strong>
+          </div>
+          <div class="orbit-card orbit-card--product">
+            <span>Product</span>
+            <strong>Direction</strong>
+          </div>
+          <div class="orbit-card orbit-card--systems">
+            <span>Systems</span>
+            <strong>Structure</strong>
+          </div>
+          <div class="orbit-card orbit-card--technology">
+            <span>Technologist</span>
+            <strong>Build</strong>
+          </div>
+        </aside>
+      </div>
+    </section>
+
+    <section class="quiz-card" id="quiz-card" hidden>
+      <div class="quiz-card__top">
+        <div>
+          <p class="eyebrow">Question <span id="question-number">1</span> of <span id="question-total">1</span></p>
+          <h2 id="question-text">Question text</h2>
+        </div>
+        <div class="progress-meter" aria-hidden="true">
+          <span id="progress-bar"></span>
+        </div>
+      </div>
+
+      <fieldset class="scale" id="answer-scale">
+        <legend>Choose the answer that feels most true.</legend>
+      </fieldset>
+
+      <div class="quiz-card__footer">
+        <button class="button button--secondary" id="back-button" type="button">Back</button>
+        <button class="button button--primary" id="next-button" type="button">Next</button>
+      </div>
+    </section>
+
+    <section class="result-card" id="result-card" hidden>
+      <p class="eyebrow">Your closest match</p>
+      <div class="result-layout">
+        <div>
+          <h2 id="result-title">Designer Type</h2>
+          <p class="result-summary" id="result-summary">Result summary.</p>
+          <div class="result-actions">
+            <button class="button button--primary" id="restart-button" type="button">Retake</button>
+            <a class="button button--secondary" href="#type-preview">Compare types</a>
+          </div>
+        </div>
+        <div class="score-stack" id="score-stack" aria-label="Type score comparison"></div>
+      </div>
+    </section>
+
+    <section class="type-preview" id="type-preview">
+      <div class="section-heading">
+        <p class="eyebrow">Possible outcomes</p>
+        <h2>Five design-adjacent directions.</h2>
+      </div>
+      <div class="type-grid" id="type-grid"></div>
+    </section>
+  </main>
+</body>
+</html>
