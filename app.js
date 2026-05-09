@@ -385,7 +385,6 @@ answerScale.addEventListener("change", (event) => {
   if (event.target instanceof HTMLInputElement) {
     state.answers[state.index] = Number.parseInt(event.target.value, 10);
     nextButton.disabled = false;
-    focusQuestionViewport();
   }
 });
 
