@@ -49,6 +49,12 @@ function hide(element) {
   element.hidden = true;
 }
 
+function focusQuestionViewport() {
+  window.requestAnimationFrame(() => {
+    quizCard.scrollIntoView({ behavior: "smooth", block: "start" });
+  });
+}
+
 function clamp(value, min, max) {
   return Math.min(Math.max(value, min), max);
 }
@@ -379,6 +385,7 @@ answerScale.addEventListener("change", (event) => {
   if (event.target instanceof HTMLInputElement) {
     state.answers[state.index] = Number.parseInt(event.target.value, 10);
     nextButton.disabled = false;
+    focusQuestionViewport();
   }
 });
 
@@ -399,6 +406,7 @@ nextButton.addEventListener("click", () => {
 
   state.index += 1;
   renderQuestion();
+  focusQuestionViewport();
 });
 
 restartButton.addEventListener("click", () => {
