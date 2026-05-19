@@ -407,6 +407,60 @@ h2 {
   gap: 6px;
 }
 
+.result-company-section {
+  margin-top: 22px;
+  padding-top: 18px;
+  border-top: 1px solid var(--line);
+}
+
+.result-company-section h3 {
+  margin: 0 0 8px;
+  font-size: 18px;
+}
+
+.result-company-section p {
+  margin: 0 0 14px;
+  color: var(--muted);
+  line-height: 1.45;
+}
+
+.result-company-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(132px, 1fr));
+  gap: 10px;
+}
+
+.result-company-card {
+  min-height: 58px;
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  padding: 10px 12px;
+  border: 1px solid var(--line);
+  background: #ffffff;
+  color: var(--ink);
+  text-decoration: none;
+  font-size: 14px;
+  font-weight: 900;
+  transition: transform 120ms ease, border-color 120ms ease, box-shadow 120ms ease;
+}
+
+.result-company-card:hover,
+.result-company-card:focus-visible {
+  border-color: var(--teal);
+  box-shadow: 0 0 0 3px rgba(47, 156, 149, 0.16);
+  transform: translateY(-1px);
+  outline: none;
+}
+
+.result-company-card__logo {
+  width: 30px;
+  height: 30px;
+  flex: 0 0 30px;
+  border-radius: 7px;
+  object-fit: contain;
+}
+
 .dimension-list,
 .score-stack {
   display: grid;
@@ -520,15 +574,15 @@ h2 {
 .company-chip {
   display: inline-flex;
   align-items: center;
-  gap: 6px;
-  min-height: 30px;
-  padding: 6px 10px;
+  gap: 9px;
+  min-height: 40px;
+  padding: 8px 12px;
   border: 1px solid var(--line);
   border-radius: 999px;
   background: #fffdf8;
   color: var(--ink);
   text-decoration: none;
-  font-size: 12px;
+  font-size: 13px;
   font-weight: 800;
   line-height: 1;
   transition: transform 120ms ease, border-color 120ms ease, box-shadow 120ms ease;
@@ -543,10 +597,10 @@ h2 {
 }
 
 .company-chip__logo {
-  width: 16px;
-  height: 16px;
-  flex: 0 0 16px;
-  border-radius: 4px;
+  width: 24px;
+  height: 24px;
+  flex: 0 0 24px;
+  border-radius: 6px;
   object-fit: contain;
 }
 

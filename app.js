@@ -177,6 +177,64 @@ function renderCompanySection(type) {
   `;
 }
 
+function collectRecruitingCompanies(types, limit = 8) {
+  const seen = new Set();
+  const companies = [];
+
+  types.forEach((type) => {
+    (type?.recruitingCompanies ?? []).forEach((company) => {
+      if (seen.has(company.name)) {
+        return;
+      }
+
+      seen.add(company.name);
+      companies.push(company);
+    });
+  });
+
+  return companies.slice(0, limit);
+}
+
+function renderResultCompanySection(types) {
+  const companies = collectRecruitingCompanies(types);
+
+  if (!companies.length) {
+    return "";
+  }
+
+  return `
+    <section class="result-company-section">
+      <h3>Companies to study</h3>
+      <p>Use these as reference points for role language, portfolios, and job descriptions tied to your result.</p>
+      <div class="result-company-grid">
+        ${companies
+          .map(
+            (company) => `
+              <a
+                class="result-company-card"
+                href="${escapeHtml(company.url)}"
+                target="_blank"
+                rel="noreferrer noopener"
+                title="${escapeHtml(company.name)} careers"
+              >
+                <img
+                  class="result-company-card__logo"
+                  src="${escapeHtml(company.logo)}"
+                  alt=""
+                  aria-hidden="true"
+                  loading="lazy"
+                  onerror="this.hidden = true"
+                >
+                <span>${escapeHtml(company.name)}</span>
+              </a>
+            `,
+          )
+          .join("")}
+      </div>
+    </section>
+  `;
+}
+
 function renderTypePreview() {
   typeGrid.innerHTML = config.types
     .map(
@@ -249,12 +307,63 @@ function comparePriorityDimensions(typeA, typeB, dimensionById) {
   return 0;
 }
 
+const DEFAULT_DIMENSION_ROLE_MAP = {
+  strategy: ["product"],
+  experienceDesign: ["ux", "interaction"],
+  research: ["research"],
+  systems: ["systems"],
+  build: ["technology"],
+  humanFactors: ["humanFactors"],
+  content: ["content"],
+};
+
+function getDimensionFocusRoleIds(dimensionId) {
+  return config.dimensionRoleMap?.[dimensionId] ?? DEFAULT_DIMENSION_ROLE_MAP[dimensionId] ?? [];
+}
+
+function getQuestionKind(question) {
+  return question.kind === "anchor" ? "anchor" : "tradeoff";
+}
+
+function getScoreBlendWeights() {
+  const anchorWeight = clamp(config.scoringModel?.anchorScoreWeight ?? 0.6, 0, 1);
+  const tradeoffWeight = clamp(config.scoringModel?.tradeoffScoreWeight ?? 1 - anchorWeight, 0, 1);
+  const total = anchorWeight + tradeoffWeight || 1;
+
+  return {
+    anchor: anchorWeight / total,
+    tradeoff: tradeoffWeight / total,
+  };
+}
+
+function getRoundedProfile(ranked) {
+  const alignments = ranked.map((type) => type.alignment);
+  const max = Math.max(...alignments);
+  const min = Math.min(...alignments);
+  const mean = alignments.reduce((sum, score) => sum + score, 0) / alignments.length;
+  const highRoleCount = alignments.filter((score) => score >= 68).length;
+
+  return {
+    isRounded: mean >= 74 && min >= 68 && max - min <= 20 && highRoleCount >= 7,
+    mean: Math.round(mean),
+    spread: max - min,
+    highRoleCount,
+  };
+}
+
 function calculateScores() {
-  const rawScores = Object.fromEntries(config.types.map((type) => [type.id, 0]));
-  const maxAbsScores = Object.fromEntries(config.types.map((type) => [type.id, 0]));
+  const rawScores = {
+    anchor: Object.fromEntries(config.types.map((type) => [type.id, 0])),
+    tradeoff: Object.fromEntries(config.types.map((type) => [type.id, 0])),
+  };
+  const maxAbsScores = {
+    anchor: Object.fromEntries(config.types.map((type) => [type.id, 0])),
+    tradeoff: Object.fromEntries(config.types.map((type) => [type.id, 0])),
+  };
   const extremeCounts = Object.fromEntries(config.types.map((type) => [type.id, 0]));
   const dimensionRaw = Object.fromEntries(config.dimensions.map((dimension) => [dimension.id, 0]));
   const dimensionMaxAbs = Object.fromEntries(config.dimensions.map((dimension) => [dimension.id, 0]));
+  const scoreBlend = getScoreBlendWeights();
 
   config.questions.forEach((question, index) => {
     const answer = state.answers[index];
@@ -266,19 +375,26 @@ function calculateScores() {
 
     const keyedAnswer = question.reverse ? 6 - answer : answer;
     const centeredAnswer = keyedAnswer - 3; // Maps 1..5 to -2..2 so Neutral adds no directional signal.
+    const questionKind = getQuestionKind(question);
+    const scoringWeight = Number.isFinite(question.scoringWeight) ? question.scoringWeight : 1;
 
     if (Object.hasOwn(dimensionRaw, question.dimension)) {
-      dimensionRaw[question.dimension] += centeredAnswer;
-      dimensionMaxAbs[question.dimension] += 2;
+      const focusRoleIds = getDimensionFocusRoleIds(question.dimension);
+      const dimensionWeight = focusRoleIds.reduce((sum, typeId) => sum + (question.weights[typeId] ?? 0), 0);
+
+      if (dimensionWeight) {
+        dimensionRaw[question.dimension] += centeredAnswer * dimensionWeight * scoringWeight;
+        dimensionMaxAbs[question.dimension] += 2 * Math.abs(dimensionWeight) * scoringWeight;
+      }
     }
 
     Object.entries(question.weights).forEach(([typeId, weight]) => {
-      if (!weight || !Object.hasOwn(rawScores, typeId)) {
+      if (!weight || !Object.hasOwn(rawScores[questionKind], typeId)) {
         return;
       }
 
-      rawScores[typeId] += centeredAnswer * weight;
-      maxAbsScores[typeId] += 2 * Math.abs(weight);
+      rawScores[questionKind][typeId] += centeredAnswer * weight * scoringWeight;
+      maxAbsScores[questionKind][typeId] += 2 * Math.abs(weight) * scoringWeight;
 
       // Used only as a late tie-breaker for strong answers on role-defining items.
       if (Math.abs(centeredAnswer) === 2 && Math.abs(weight) >= 3) {
@@ -297,13 +413,21 @@ function calculateScores() {
   const dimensionById = new Map(dimensions.map((dimension) => [dimension.id, dimension]));
 
   const ranked = config.types
-    .map((type, order) => ({
-      ...type,
-      order,
-      rawScore: rawScores[type.id],
-      extremeCount: extremeCounts[type.id],
-      alignment: normalizeAlignment(rawScores[type.id], maxAbsScores[type.id]),
-    }))
+    .map((type, order) => {
+      const anchorAlignment = normalizeAlignment(rawScores.anchor[type.id], maxAbsScores.anchor[type.id]);
+      const tradeoffAlignment = normalizeAlignment(rawScores.tradeoff[type.id], maxAbsScores.tradeoff[type.id]);
+      const alignment = Math.round(anchorAlignment * scoreBlend.anchor + tradeoffAlignment * scoreBlend.tradeoff);
+
+      return {
+        ...type,
+        order,
+        rawScore: rawScores.anchor[type.id] + rawScores.tradeoff[type.id],
+        extremeCount: extremeCounts[type.id],
+        anchorAlignment,
+        tradeoffAlignment,
+        alignment,
+      };
+    })
     .sort(
       (a, b) =>
         b.alignment - a.alignment ||
@@ -501,29 +625,44 @@ function renderResult() {
   const { ranked, dimensions } = calculateScores();
   const [topType, secondType] = ranked;
   const resultLabel = getResultLabel(topType, secondType);
+  const roundedProfile = getRoundedProfile(ranked);
   const topDimensions = dimensions.slice(0, 3);
   const isLowDifferentiation = getResponseVariance(state.answers) < 0.35;
 
-  resultEyebrow.textContent = resultLabel.label;
-  resultTitle.textContent = resultLabel.mode === "blend" && secondType ? `${topType.name} + ${secondType.name}` : topType.name;
+  if (roundedProfile.isRounded) {
+    resultEyebrow.textContent = "Rounded profile";
+    resultTitle.textContent = "Multidisciplinary Designer";
+    resultSummary.textContent =
+      "Your answers show broad coverage across several design-adjacent paths. Use this as breadth, then use your strongest lanes as portfolio positioning.";
+
+    secondaryResult.hidden = false;
+    secondaryResult.innerHTML = `
+      <h3>Closest emphasis: ${escapeHtml(topType.name)}${secondType ? ` + ${escapeHtml(secondType.name)}` : ""}</h3>
+      <p>Your highest role signals still matter. The rounded profile means you can credibly frame yourself as T-shaped instead of narrowly specialized.</p>
+    `;
+  } else {
+    resultEyebrow.textContent = resultLabel.label;
+    resultTitle.textContent = resultLabel.mode === "blend" && secondType ? `${topType.name} + ${secondType.name}` : topType.name;
+    resultSummary.textContent =
+      resultLabel.mode === "blend" && secondType
+        ? `Your answers point to a blended path. ${topType.summary} ${secondType.summary}`
+        : topType.summary;
+
+    if (resultLabel.showSecondary && secondType) {
+      renderSecondaryResult(secondType, resultLabel.mode);
+    } else {
+      secondaryResult.hidden = true;
+      secondaryResult.innerHTML = "";
+    }
+  }
+
   state.resultFileBase = `designer-type-${slugify(resultTitle.textContent)}`;
   setSaveStatus("");
-  resultSummary.textContent =
-    resultLabel.mode === "blend" && secondType
-      ? `Your answers point to a blended path. ${topType.summary} ${secondType.summary}`
-      : topType.summary;
 
   responseWarning.hidden = !isLowDifferentiation;
   responseWarning.textContent = isLowDifferentiation
     ? "Your responses were very similar across questions, so this result may be less differentiated. Try retaking the quiz and forcing tradeoffs."
     : "";
-
-  if (resultLabel.showSecondary && secondType) {
-    renderSecondaryResult(secondType, resultLabel.mode);
-  } else {
-    secondaryResult.hidden = true;
-    secondaryResult.innerHTML = "";
-  }
 
   dimensionSummary.innerHTML = `
     <h3>Why this result surfaced</h3>
@@ -542,12 +681,27 @@ function renderResult() {
     </div>
   `;
 
-  nextSteps.innerHTML = [
-    renderList("Strengths", topType.strengths),
-    renderList("Project ideas", topType.projectIdeas),
-    renderList("Skills to build next", topType.skillsToBuild),
-    renderList("Roles to explore", topType.rolesToExplore),
-  ].join("");
+  const companyReferenceTypes = roundedProfile.isRounded ? ranked.slice(0, 4) : [topType, secondType].filter(Boolean);
+  const nextStepSections = roundedProfile.isRounded
+    ? [
+        renderResultCompanySection(companyReferenceTypes),
+        renderList("How to use this result", [
+          "Position yourself around the top two lanes instead of claiming every lane equally.",
+          "Build one portfolio project that shows breadth: research, interaction, content, systems, and implementation judgment.",
+          "Use the ranked scores to choose which job descriptions and portfolios to study first.",
+        ]),
+        renderList(`Strongest lane: ${topType.name}`, topType.skillsToBuild),
+        renderList("Roles to explore", Array.from(new Set(ranked.slice(0, 3).flatMap((type) => type.rolesToExplore ?? []))).slice(0, 6)),
+      ]
+    : [
+        renderResultCompanySection(companyReferenceTypes),
+        renderList("Strengths", topType.strengths),
+        renderList("Project ideas", topType.projectIdeas),
+        renderList("Skills to build next", topType.skillsToBuild),
+        renderList("Roles to explore", topType.rolesToExplore),
+      ];
+
+  nextSteps.innerHTML = nextStepSections.join("");
 
   scoreStack.innerHTML = ranked
     .map(
