@@ -32,6 +32,7 @@ const restartButton = byId("restart-button");
 const resultEyebrow = byId("result-eyebrow");
 const resultTitle = byId("result-title");
 const resultSummary = byId("result-summary");
+const responseWarning = byId("response-warning");
 const secondaryResult = byId("secondary-result");
 const dimensionSummary = byId("dimension-summary");
 const nextSteps = byId("next-steps");
@@ -79,6 +80,18 @@ function normalizeAlignment(rawScore, maxAbsScore) {
 
   // 50 means no clear signal; below 50 indicates disagreement with role-defining items.
   return Math.round(clamp(50 + 50 * (rawScore / maxAbsScore), 0, 100));
+}
+
+function getResponseVariance(answers) {
+  const answered = answers.filter((answer) => answer !== null && answer !== undefined);
+
+  if (!answered.length) {
+    return 0;
+  }
+
+  // Flat answer patterns make tradeoff-weighted results less differentiated.
+  const average = answered.reduce((sum, answer) => sum + answer, 0) / answered.length;
+  return answered.reduce((sum, answer) => sum + (answer - average) ** 2, 0) / answered.length;
 }
 
 function renderList(title, items = []) {
@@ -313,6 +326,7 @@ function renderResult() {
   const [topType, secondType] = ranked;
   const resultLabel = getResultLabel(topType, secondType);
   const topDimensions = dimensions.slice(0, 3);
+  const isLowDifferentiation = getResponseVariance(state.answers) < 0.35;
 
   resultEyebrow.textContent = resultLabel.label;
   resultTitle.textContent = resultLabel.mode === "blend" && secondType ? `${topType.name} + ${secondType.name}` : topType.name;
@@ -320,6 +334,11 @@ function renderResult() {
     resultLabel.mode === "blend" && secondType
       ? `Your answers point to a blended path. ${topType.summary} ${secondType.summary}`
       : topType.summary;
+
+  responseWarning.hidden = !isLowDifferentiation;
+  responseWarning.textContent = isLowDifferentiation
+    ? "Your responses were very similar across questions, so this result may be less differentiated. Try retaking the quiz and forcing tradeoffs."
+    : "";
 
   if (resultLabel.showSecondary && secondType) {
     renderSecondaryResult(secondType, resultLabel.mode);
