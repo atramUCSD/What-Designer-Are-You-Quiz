@@ -29,6 +29,9 @@ const startButton = byId("start-button");
 const backButton = byId("back-button");
 const nextButton = byId("next-button");
 const restartButton = byId("restart-button");
+const savePdfButton = byId("save-pdf-button");
+const saveImageButton = byId("save-image-button");
+const saveStatus = byId("save-status");
 const resultEyebrow = byId("result-eyebrow");
 const resultTitle = byId("result-title");
 const resultSummary = byId("result-summary");
@@ -40,6 +43,7 @@ const nextSteps = byId("next-steps");
 const state = {
   index: 0,
   answers: Array(config.questions.length).fill(null),
+  resultFileBase: "designer-type-result",
 };
 
 function show(element) {
@@ -67,6 +71,21 @@ function escapeHtml(value) {
     .replace(/>/g, "&gt;")
     .replace(/\"/g, "&quot;")
     .replace(/'/g, "&#39;");
+}
+
+function slugify(value) {
+  const slug = String(value)
+    .toLowerCase()
+    .trim()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "");
+
+  return slug || "designer-type-result";
+}
+
+function setSaveStatus(message, isError = false) {
+  saveStatus.textContent = message;
+  saveStatus.classList.toggle("save-status--error", isError);
 }
 
 function getDimension(id) {
@@ -321,6 +340,163 @@ function renderSecondaryResult(secondType, mode) {
   `;
 }
 
+function downloadUrl(url, filename) {
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = filename;
+  document.body.append(link);
+  link.click();
+  link.remove();
+}
+
+function copyComputedStyles(source, target) {
+  const computedStyle = window.getComputedStyle(source);
+
+  for (const property of computedStyle) {
+    target.style.setProperty(property, computedStyle.getPropertyValue(property), computedStyle.getPropertyPriority(property));
+  }
+
+  Array.from(source.children).forEach((sourceChild, index) => {
+    const targetChild = target.children[index];
+
+    if (targetChild) {
+      copyComputedStyles(sourceChild, targetChild);
+    }
+  });
+}
+
+function buildResultExportClone() {
+  const exportWidth = Math.min(1180, Math.max(760, resultCard.scrollWidth));
+  const wrapper = document.createElement("div");
+  const clone = resultCard.cloneNode(true);
+
+  wrapper.style.position = "fixed";
+  wrapper.style.left = "-10000px";
+  wrapper.style.top = "0";
+  wrapper.style.width = `${exportWidth}px`;
+  wrapper.style.background = "#f6f2ea";
+  wrapper.style.pointerEvents = "none";
+
+  clone.hidden = false;
+  clone.setAttribute("xmlns", "http://www.w3.org/1999/xhtml");
+  clone.querySelectorAll("[id]").forEach((element) => element.removeAttribute("id"));
+  wrapper.append(clone);
+  document.body.append(wrapper);
+
+  copyComputedStyles(resultCard, clone);
+
+  clone.querySelector(".result-actions")?.remove();
+  clone.querySelector(".save-status")?.remove();
+  clone.style.width = "100%";
+  clone.style.margin = "0";
+  clone.style.boxShadow = "none";
+
+  const rect = clone.getBoundingClientRect();
+  return {
+    clone,
+    wrapper,
+    width: Math.ceil(rect.width),
+    height: Math.ceil(clone.scrollHeight),
+  };
+}
+
+function loadImage(url) {
+  return new Promise((resolve, reject) => {
+    const image = new Image();
+    image.onload = () => resolve(image);
+    image.onerror = () => reject(new Error("Unable to prepare the result image."));
+    image.src = url;
+  });
+}
+
+function canvasToBlob(canvas) {
+  return new Promise((resolve, reject) => {
+    canvas.toBlob((blob) => {
+      if (blob) {
+        resolve(blob);
+        return;
+      }
+
+      reject(new Error("Unable to create image file."));
+    }, "image/png");
+  });
+}
+
+function downloadSvgFallback(svgText) {
+  const fallbackUrl = URL.createObjectURL(new Blob([svgText], { type: "image/svg+xml;charset=utf-8" }));
+  downloadUrl(fallbackUrl, `${state.resultFileBase}.svg`);
+  window.setTimeout(() => URL.revokeObjectURL(fallbackUrl), 1000);
+}
+
+function saveResultPdf() {
+  if (resultCard.hidden) {
+    return;
+  }
+
+  setSaveStatus("Choose Save as PDF in the print dialog.");
+  window.print();
+}
+
+async function saveResultImage() {
+  if (resultCard.hidden) {
+    return;
+  }
+
+  let wrapper;
+  let svgUrl;
+  let svgText = "";
+
+  try {
+    saveImageButton.disabled = true;
+    setSaveStatus("Preparing image export...");
+
+    const exportClone = buildResultExportClone();
+    wrapper = exportClone.wrapper;
+
+    const serializedClone = new XMLSerializer().serializeToString(exportClone.clone);
+    svgText = `
+      <svg xmlns="http://www.w3.org/2000/svg" width="${exportClone.width}" height="${exportClone.height}" viewBox="0 0 ${exportClone.width} ${exportClone.height}">
+        <foreignObject width="100%" height="100%">${serializedClone}</foreignObject>
+      </svg>
+    `;
+    svgUrl = URL.createObjectURL(new Blob([svgText], { type: "image/svg+xml;charset=utf-8" }));
+
+    const image = await loadImage(svgUrl);
+    const scale = 2;
+    const canvas = document.createElement("canvas");
+    const context = canvas.getContext("2d");
+
+    if (!context) {
+      throw new Error("Canvas export is not available in this browser.");
+    }
+
+    canvas.width = exportClone.width * scale;
+    canvas.height = exportClone.height * scale;
+    context.scale(scale, scale);
+    context.drawImage(image, 0, 0, exportClone.width, exportClone.height);
+    const pngUrl = URL.createObjectURL(await canvasToBlob(canvas));
+    downloadUrl(pngUrl, `${state.resultFileBase}.png`);
+    window.setTimeout(() => URL.revokeObjectURL(pngUrl), 1000);
+    setSaveStatus("Saved result image.");
+  } catch (error) {
+    console.error(error);
+
+    if (svgText) {
+      downloadSvgFallback(svgText);
+      setSaveStatus("PNG export was blocked, so an SVG image was saved instead.", true);
+    } else {
+      setSaveStatus("Image export failed. Use Save PDF as a fallback.", true);
+    }
+  } finally {
+    if (svgUrl) {
+      URL.revokeObjectURL(svgUrl);
+    }
+
+    wrapper?.remove();
+    saveImageButton.disabled = false;
+  }
+}
+
 function renderResult() {
   const { ranked, dimensions } = calculateScores();
   const [topType, secondType] = ranked;
@@ -330,6 +506,8 @@ function renderResult() {
 
   resultEyebrow.textContent = resultLabel.label;
   resultTitle.textContent = resultLabel.mode === "blend" && secondType ? `${topType.name} + ${secondType.name}` : topType.name;
+  state.resultFileBase = `designer-type-${slugify(resultTitle.textContent)}`;
+  setSaveStatus("");
   resultSummary.textContent =
     resultLabel.mode === "blend" && secondType
       ? `Your answers point to a blended path. ${topType.summary} ${secondType.summary}`
@@ -430,9 +608,13 @@ nextButton.addEventListener("click", () => {
 restartButton.addEventListener("click", () => {
   state.index = 0;
   state.answers = Array(config.questions.length).fill(null);
+  setSaveStatus("");
   hide(resultCard);
   show(introPanel);
   introPanel.scrollIntoView({ behavior: "smooth", block: "start" });
 });
+
+savePdfButton.addEventListener("click", saveResultPdf);
+saveImageButton.addEventListener("click", saveResultImage);
 
 renderTypePreview();

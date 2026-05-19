@@ -193,6 +193,18 @@ h2 {
   margin-top: 30px;
 }
 
+.save-status {
+  min-height: 22px;
+  margin: 12px 0 0;
+  color: var(--muted);
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.save-status--error {
+  color: #7b321c;
+}
+
 .button {
   display: inline-flex;
   align-items: center;
@@ -660,5 +672,58 @@ h2 {
 
   .score-panel {
     padding: 14px;
+  }
+}
+
+@media print {
+  @page {
+    margin: 0.45in;
+  }
+
+  html,
+  body {
+    max-width: none;
+    overflow: visible;
+    background: #ffffff;
+  }
+
+  body {
+    color: var(--ink);
+  }
+
+  .quiz-shell {
+    width: 100%;
+    margin: 0;
+    padding: 0;
+  }
+
+  .intro-panel,
+  .quiz-card,
+  .type-preview,
+  .result-actions,
+  .save-status {
+    display: none !important;
+  }
+
+  .result-card {
+    display: block !important;
+    margin: 0;
+    padding: 0;
+    border: 0;
+    background: #ffffff;
+    box-shadow: none;
+  }
+
+  .result-layout {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 24px;
+  }
+
+  .result-block,
+  .score-panel,
+  .dimension-row,
+  .score-row {
+    break-inside: avoid;
   }
 }
