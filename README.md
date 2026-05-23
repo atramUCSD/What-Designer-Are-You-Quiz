@@ -34,11 +34,11 @@ npm run check
 
 This checks the standalone JavaScript files for syntax errors.
 
-## What changed in the expanded version
+## Current quiz model
 
-- Replaced the original five-role quiz with an eight-role framework.
-- Added Human Factors Engineer, Interaction Designer, and UX Writer / Content Designer.
-- Kept Product Designer, UX Designer, UX Researcher, Design Systems Designer, and Design Technologist / UI Engineer.
+- Uses seven primary outcomes: Product Designer, UX Designer, Interaction Designer, UX Researcher, Design Technologist / UI Engineer, Human Factors Engineer, and UX Writer / Content Designer.
+- Retains systems thinking as a cross-cutting scoring dimension instead of a standalone result.
+- Surfaces a secondary Systems Thinking Signal when reusable patterns, documentation, accessibility, or shared product language score strongly.
 - Added seven scoring dimensions in `questions.js`.
 - Replaced raw `answer * weight` scoring with centered Likert alignment scoring.
 - Added reverse-scored item support.
@@ -72,7 +72,7 @@ If GitHub Pages is configured to publish from `main` and the repository root:
 
 ```bash
 git add .
-git commit -m "Expand quiz to eight designer paths"
+git commit -m "Update quiz model"
 git push origin main
 ```
 
@@ -82,7 +82,7 @@ If GitHub Pages is configured to publish from `gh-pages`, mirror the same static
 git checkout gh-pages
 git checkout main -- .nojekyll README.md app.js index.html questions.js styles.css serve-local.mjs package.json
 git add .
-git commit -m "Deploy expanded eight-role quiz"
+git commit -m "Deploy seven-outcome quiz model"
 git push origin gh-pages
 ```
 

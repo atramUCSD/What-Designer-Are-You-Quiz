@@ -311,7 +311,7 @@ const DEFAULT_DIMENSION_ROLE_MAP = {
   strategy: ["product"],
   experienceDesign: ["ux", "interaction"],
   research: ["research"],
-  systems: ["systems"],
+  systems: ["technology", "interaction", "ux", "content", "humanFactors", "product"],
   build: ["technology"],
   humanFactors: ["humanFactors"],
   content: ["content"],
@@ -461,6 +461,23 @@ function renderSecondaryResult(secondType, mode) {
   secondaryResult.innerHTML = `
     <h3>${mode === "blend" ? "Also strongly indicated" : "Strong secondary lean"}: ${escapeHtml(secondType.name)}</h3>
     <p>${escapeHtml(secondType.summary)}</p>
+  `;
+}
+
+function renderSystemsSignal(systemsDimension, isActive) {
+  if (!isActive || !systemsDimension) {
+    return "";
+  }
+
+  return `
+    <div class="systems-signal">
+      <h3>Systems Thinking Signal</h3>
+      <p>
+        You showed a strong preference for reusable patterns, consistency, documentation, accessibility, or shared product language.
+        This strengthens several paths: UX Design, Interaction Design, Content Design, Human Factors, Product Design, and Design Technology.
+      </p>
+      <p class="systems-signal__note">Keep this as a secondary signal, not a top-level result.</p>
+    </div>
   `;
 }
 
@@ -627,6 +644,9 @@ function renderResult() {
   const resultLabel = getResultLabel(topType, secondType);
   const roundedProfile = getRoundedProfile(ranked);
   const topDimensions = dimensions.slice(0, 3);
+  const topDimensionIds = topDimensions.map((dimension) => dimension.id);
+  const systemsDimension = dimensions.find((dimension) => dimension.id === "systems");
+  const hasSystemsSignal = systemsDimension && (systemsDimension.alignment >= 70 || topDimensionIds.includes("systems"));
   const isLowDifferentiation = getResponseVariance(state.answers) < 0.35;
 
   if (roundedProfile.isRounded) {
@@ -679,6 +699,7 @@ function renderResult() {
         )
         .join("")}
     </div>
+    ${renderSystemsSignal(systemsDimension, hasSystemsSignal)}
   `;
 
   const companyReferenceTypes = roundedProfile.isRounded ? ranked.slice(0, 4) : [topType, secondType].filter(Boolean);
