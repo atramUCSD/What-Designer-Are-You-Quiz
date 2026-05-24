@@ -70,19 +70,37 @@
       </div>
     </section>
 
-    <section class="result-card" id="result-card" hidden>
+    <section class="result-card" id="result-card" hidden aria-live="polite">
       <p class="eyebrow" id="result-eyebrow">Primary lean</p>
-      <div class="result-layout">
-        <div>
+
+      <div class="result-hero">
+        <div class="result-copy">
           <h2 id="result-title">Designer Type</h2>
           <p class="result-summary" id="result-summary">Result summary.</p>
           <p class="result-warning" id="response-warning" hidden></p>
           <div class="result-block" id="secondary-result" hidden></div>
+        </div>
+
+        <div class="result-visual-card">
+          <div class="result-visual-card__heading">
+            <p class="eyebrow">Skill shape</p>
+            <h3>Your Designer Skill Shape</h3>
+            <p>A snapshot of how your answers spread across design-adjacent skills.</p>
+          </div>
+          <div id="result-radar"></div>
+        </div>
+      </div>
+
+      <section class="badge-panel" id="badge-panel" aria-label="Designer badges"></section>
+
+      <div class="result-layout">
+        <div>
           <div class="result-block" id="dimension-summary"></div>
           <div class="result-block" id="next-steps"></div>
           <p class="helper-copy">This is a reflection tool, not a hiring screen or fixed identity.</p>
           <div class="result-actions">
             <button class="button button--primary" id="restart-button" type="button">Retake</button>
+            <button class="button button--secondary" id="print-result-button" type="button">Print result</button>
             <button class="button button--secondary" id="save-pdf-button" type="button">Save PDF</button>
             <button class="button button--secondary" id="save-image-button" type="button">Save Image</button>
             <a class="button button--secondary" href="#type-preview">Compare types</a>

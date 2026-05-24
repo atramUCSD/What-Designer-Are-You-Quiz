@@ -66,6 +66,14 @@ const centeredAnswer = keyedAnswer - 3; // 1..5 becomes -2..2
 
 That means Neutral contributes no directional signal. Role scores are normalized to 0-100 and labeled as current alignment, not as a precise personality score.
 
+## Result Visualization
+
+The quiz result renders a static SVG radar chart based on dimension alignment scores. This is intentionally implemented without external charting libraries so it remains GitHub Pages-friendly and print/PDF compatible.
+
+## Designer Badges
+
+Badges are configurable sub-signals derived from role and dimension scores. Badge levels are Bronze, Silver, and Gold. They are directional reflections, not credentials.
+
 ## Deployment
 
 If GitHub Pages is configured to publish from `main` and the repository root:

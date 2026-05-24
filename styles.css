@@ -378,6 +378,86 @@ h2 {
   flex: 1 1 0;
 }
 
+.result-hero {
+  display: grid;
+  grid-template-columns: minmax(0, 0.9fr) minmax(360px, 1.1fr);
+  gap: 28px;
+  align-items: start;
+}
+
+.result-copy {
+  min-width: 0;
+}
+
+.result-visual-card {
+  padding: clamp(16px, 3vw, 22px);
+  border: 1px solid color-mix(in srgb, var(--result-color, var(--teal)) 28%, var(--line));
+  background:
+    radial-gradient(circle at 20% 12%, color-mix(in srgb, var(--result-color, var(--teal)) 12%, transparent), transparent 34%),
+    #ffffff;
+}
+
+.result-visual-card__heading {
+  display: grid;
+  gap: 6px;
+  margin-bottom: 10px;
+}
+
+.result-visual-card__heading h3 {
+  margin: 0;
+  font-size: clamp(22px, 4vw, 28px);
+}
+
+.result-visual-card__heading p:not(.eyebrow) {
+  margin: 0;
+  color: var(--muted);
+  line-height: 1.45;
+}
+
+.result-radar-chart {
+  width: 100%;
+  height: auto;
+  display: block;
+  overflow: visible;
+}
+
+.result-radar-chart__ring {
+  fill: none;
+  stroke: var(--line);
+  stroke-width: 1.4;
+}
+
+.result-radar-chart__axis {
+  stroke: rgba(38, 50, 56, 0.22);
+  stroke-width: 1.4;
+}
+
+.result-radar-chart__label {
+  fill: var(--ink);
+  font-size: 25px;
+  font-weight: 900;
+  letter-spacing: 0.02em;
+}
+
+.result-radar-chart__scale-label {
+  fill: var(--muted);
+  font-size: 16px;
+  font-weight: 800;
+}
+
+.result-radar-chart__shape {
+  fill: var(--result-fill, rgba(47, 156, 149, 0.16));
+  stroke: var(--result-color, var(--teal));
+  stroke-width: 5;
+  stroke-linejoin: round;
+}
+
+.result-radar-chart__point {
+  fill: #ffffff;
+  stroke: var(--result-color, var(--teal));
+  stroke-width: 4;
+}
+
 .result-block {
   margin-top: 22px;
   padding-top: 18px;
@@ -405,6 +485,113 @@ h2 {
   padding-left: 20px;
   display: grid;
   gap: 6px;
+}
+
+.badge-panel {
+  margin-top: 26px;
+  padding: clamp(16px, 3vw, 22px);
+  border: 1px solid var(--line);
+  background: rgba(255, 255, 255, 0.68);
+}
+
+.badge-panel__header {
+  display: grid;
+  gap: 8px;
+  margin-bottom: 16px;
+}
+
+.badge-panel__header h3 {
+  margin: 0;
+  font-size: clamp(23px, 4.5vw, 32px);
+}
+
+.badge-panel__header p:not(.eyebrow),
+.badge-panel__empty {
+  margin: 0;
+  color: var(--muted);
+  line-height: 1.45;
+}
+
+.badge-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 12px;
+}
+
+.designer-badge {
+  min-height: 132px;
+  display: flex;
+  gap: 14px;
+  padding: 14px;
+  border: 1px solid color-mix(in srgb, var(--badge-color) 34%, var(--line));
+  background:
+    linear-gradient(135deg, color-mix(in srgb, var(--badge-color) 13%, white), #ffffff 48%),
+    #ffffff;
+  break-inside: avoid;
+}
+
+.designer-badge__icon {
+  width: 48px;
+  height: 48px;
+  flex: 0 0 48px;
+  display: grid;
+  place-items: center;
+  border: 2px solid var(--badge-color);
+  border-radius: 50%;
+  color: var(--badge-color);
+  background: #ffffff;
+  font-size: 20px;
+  font-weight: 900;
+}
+
+.designer-badge__copy {
+  min-width: 0;
+  display: grid;
+  gap: 8px;
+}
+
+.designer-badge__top {
+  display: flex;
+  align-items: start;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.designer-badge__top h4 {
+  margin: 0;
+  font-size: 17px;
+  line-height: 1.05;
+}
+
+.designer-badge__top span {
+  padding: 4px 7px;
+  border: 1px solid var(--badge-color);
+  color: var(--badge-color);
+  background: #ffffff;
+  font-size: 11px;
+  font-weight: 900;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.designer-badge__copy p {
+  margin: 0;
+  color: var(--muted);
+  font-size: 14px;
+  line-height: 1.38;
+}
+
+.designer-badge__meter {
+  height: 8px;
+  overflow: hidden;
+  background: #ede4d7;
+}
+
+.designer-badge__meter span {
+  display: block;
+  width: var(--badge-score);
+  height: 100%;
+  background: var(--badge-color);
 }
 
 .result-company-section {
@@ -656,10 +843,15 @@ h2 {
   }
 
   .hero-grid,
+  .result-hero,
   .result-layout,
   .section-heading,
   .quiz-card__top {
     display: grid;
+  }
+
+  .result-hero {
+    grid-template-columns: 1fr;
   }
 
   .type-grid,
@@ -751,6 +943,14 @@ h2 {
   .score-panel {
     padding: 14px;
   }
+
+  .result-radar-chart__label {
+    font-size: 22px;
+  }
+
+  .designer-badge {
+    min-height: auto;
+  }
 }
 
 @media print {
@@ -778,6 +978,7 @@ h2 {
   .intro-panel,
   .quiz-card,
   .type-preview,
+  .topbar,
   .result-actions,
   .save-status {
     display: none !important;
@@ -792,13 +993,22 @@ h2 {
     box-shadow: none;
   }
 
+  .result-hero,
   .result-layout {
     display: grid;
-    grid-template-columns: 1fr;
+    grid-template-columns: 1fr 1fr;
     gap: 24px;
   }
 
+  .result-radar-chart {
+    max-width: 100%;
+    height: auto;
+  }
+
   .result-block,
+  .result-visual-card,
+  .badge-panel,
+  .designer-badge,
   .score-panel,
   .dimension-row,
   .score-row {

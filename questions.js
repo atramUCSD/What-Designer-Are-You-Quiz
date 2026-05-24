@@ -223,6 +223,139 @@ window.DESIGNER_TYPE_TEST = {
     humanFactors: ["humanFactors"],
     content: ["content"],
   },
+  badgeLevels: [
+    { id: "bronze", name: "Bronze", minScore: 60, color: "#b97845" },
+    { id: "silver", name: "Silver", minScore: 72, color: "#9ca3af" },
+    { id: "gold", name: "Gold", minScore: 84, color: "#d29b2f" },
+  ],
+  badges: [
+    {
+      id: "product-sense",
+      name: "Product Sense",
+      icon: "◆",
+      description: "You connect user needs, scope, tradeoffs, and product outcomes.",
+      signals: [
+        { source: "dimension", id: "strategy", weight: 0.5 },
+        { source: "role", id: "product", weight: 0.5 },
+      ],
+    },
+    {
+      id: "flow-architect",
+      name: "Flow Architect",
+      icon: "⇄",
+      description: "You notice task flow, hierarchy, navigation, and usability structure.",
+      signals: [
+        { source: "dimension", id: "experienceDesign", weight: 0.55 },
+        { source: "role", id: "ux", weight: 0.45 },
+      ],
+    },
+    {
+      id: "interaction-finisher",
+      name: "Interaction Finisher",
+      icon: "✦",
+      description: "You care about states, feedback, timing, and behavior details.",
+      signals: [
+        { source: "dimension", id: "experienceDesign", weight: 0.45 },
+        { source: "role", id: "interaction", weight: 0.55 },
+      ],
+    },
+    {
+      id: "evidence-hunter",
+      name: "Evidence Hunter",
+      icon: "◎",
+      description: "You look for user evidence before locking decisions.",
+      signals: [
+        { source: "dimension", id: "research", weight: 0.55 },
+        { source: "role", id: "research", weight: 0.45 },
+      ],
+    },
+    {
+      id: "systems-thinker",
+      name: "Systems Thinker",
+      icon: "▦",
+      description: "You value reusable patterns, documentation, consistency, and shared language.",
+      signals: [
+        { source: "dimension", id: "systems", weight: 0.7 },
+        { source: "role", id: "technology", weight: 0.15 },
+        { source: "role", id: "interaction", weight: 0.15 },
+      ],
+    },
+    {
+      id: "prototype-operator",
+      name: "Prototype Operator",
+      icon: "⚙",
+      description: "You use fidelity, code, and working states to make ideas tangible.",
+      signals: [
+        { source: "dimension", id: "build", weight: 0.45 },
+        { source: "role", id: "technology", weight: 0.35 },
+        { source: "role", id: "interaction", weight: 0.2 },
+      ],
+    },
+    {
+      id: "risk-spotter",
+      name: "Risk Spotter",
+      icon: "!",
+      description: "You notice errors, safety risks, recovery paths, and real-world constraints.",
+      signals: [
+        { source: "dimension", id: "humanFactors", weight: 0.6 },
+        { source: "role", id: "humanFactors", weight: 0.4 },
+      ],
+    },
+    {
+      id: "content-clarifier",
+      name: "Content Clarifier",
+      icon: "Aa",
+      description: "You use words, labels, tone, and instructions to reduce friction.",
+      signals: [
+        { source: "dimension", id: "content", weight: 0.55 },
+        { source: "role", id: "content", weight: 0.45 },
+      ],
+    },
+    {
+      id: "stakeholder-translator",
+      name: "Stakeholder Translator",
+      icon: "↔",
+      description: "You bridge user needs, team constraints, and decision narratives.",
+      signals: [
+        { source: "dimension", id: "strategy", weight: 0.35 },
+        { source: "dimension", id: "research", weight: 0.25 },
+        { source: "dimension", id: "content", weight: 0.2 },
+        { source: "role", id: "product", weight: 0.2 },
+      ],
+    },
+    {
+      id: "accessibility-sentinel",
+      name: "Accessibility Sentinel",
+      icon: "◉",
+      description: "You protect accessibility, safe defaults, recovery, and inclusive patterns.",
+      signals: [
+        { source: "dimension", id: "humanFactors", weight: 0.45 },
+        { source: "dimension", id: "systems", weight: 0.3 },
+        { source: "role", id: "humanFactors", weight: 0.25 },
+      ],
+    },
+    {
+      id: "launch-closer",
+      name: "Launch Closer",
+      icon: "▸",
+      description: "You move ideas toward demos, delivery, implementation, and QA.",
+      signals: [
+        { source: "dimension", id: "build", weight: 0.45 },
+        { source: "dimension", id: "strategy", weight: 0.2 },
+        { source: "role", id: "technology", weight: 0.25 },
+        { source: "role", id: "product", weight: 0.1 },
+      ],
+    },
+    {
+      id: "multidisciplinary-connector",
+      name: "Multidisciplinary Connector",
+      icon: "✚",
+      description: "You show balanced range across multiple design-adjacent skills.",
+      signals: [
+        { source: "computed", id: "roundedProfile", weight: 1 },
+      ],
+    },
+  ],
   tieBreakerLogic: {
     showSecondaryIfWithin: 5,
     showBlendedIfWithin: 3,

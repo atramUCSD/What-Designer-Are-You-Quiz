@@ -31,12 +31,15 @@ const nextButton = byId("next-button");
 const restartButton = byId("restart-button");
 const savePdfButton = byId("save-pdf-button");
 const saveImageButton = byId("save-image-button");
+const printResultButton = byId("print-result-button");
 const saveStatus = byId("save-status");
 const resultEyebrow = byId("result-eyebrow");
 const resultTitle = byId("result-title");
 const resultSummary = byId("result-summary");
 const responseWarning = byId("response-warning");
 const secondaryResult = byId("secondary-result");
+const resultRadar = byId("result-radar");
+const badgePanel = byId("badge-panel");
 const dimensionSummary = byId("dimension-summary");
 const nextSteps = byId("next-steps");
 
@@ -111,6 +114,161 @@ function getResponseVariance(answers) {
   // Flat answer patterns make tradeoff-weighted results less differentiated.
   const average = answered.reduce((sum, answer) => sum + answer, 0) / answered.length;
   return answered.reduce((sum, answer) => sum + (answer - average) ** 2, 0) / answered.length;
+}
+
+const RADAR_AXIS_META = {
+  strategy: { label: "Strategy", summary: "Scope, tradeoffs, product direction" },
+  experienceDesign: { label: "UX Flow", summary: "Flows, IA, usability, clarity" },
+  research: { label: "Research", summary: "Evidence, synthesis, user learning" },
+  systems: { label: "Systems", summary: "Patterns, standards, consistency" },
+  build: { label: "Build", summary: "Code, feasibility, implementation" },
+  humanFactors: { label: "Human Factors", summary: "Safety, errors, real-world context" },
+  content: { label: "Content", summary: "Words, labels, tone, microcopy" },
+};
+
+const DEFAULT_BADGE_LEVELS = [
+  { id: "bronze", name: "Bronze", minScore: 60, color: "#b97845" },
+  { id: "silver", name: "Silver", minScore: 72, color: "#9ca3af" },
+  { id: "gold", name: "Gold", minScore: 84, color: "#d29b2f" },
+];
+
+const MAX_VISIBLE_BADGES = 6;
+const LEVEL_RANK = { gold: 3, silver: 2, bronze: 1 };
+
+function polarPoint(centerX, centerY, radius, angleDegrees) {
+  const radians = ((angleDegrees - 90) * Math.PI) / 180;
+
+  return {
+    x: centerX + Math.cos(radians) * radius,
+    y: centerY + Math.sin(radians) * radius,
+  };
+}
+
+function pointString(point) {
+  return `${point.x.toFixed(1)},${point.y.toFixed(1)}`;
+}
+
+function labelAnchor(point, centerX) {
+  if (Math.abs(point.x - centerX) < 24) {
+    return "middle";
+  }
+
+  // Keep long labels inside the SVG bounds for screenshots and PDF exports.
+  return point.x > centerX ? "end" : "start";
+}
+
+function labelDy(point, centerY) {
+  if (Math.abs(point.y - centerY) < 24) {
+    return "0.35em";
+  }
+
+  return point.y > centerY ? "1.15em" : "-0.55em";
+}
+
+function hexToRgba(hexColor, alpha) {
+  const normalized = String(hexColor).replace("#", "");
+
+  if (!/^[\da-f]{6}$/i.test(normalized)) {
+    return `rgba(47, 156, 149, ${alpha})`;
+  }
+
+  const red = Number.parseInt(normalized.slice(0, 2), 16);
+  const green = Number.parseInt(normalized.slice(2, 4), 16);
+  const blue = Number.parseInt(normalized.slice(4, 6), 16);
+
+  return `rgba(${red}, ${green}, ${blue}, ${alpha})`;
+}
+
+function renderRadarChart({ dimensions, color = "#2f9c95", title = "Your Designer Skill Shape" }) {
+  const size = 760;
+  const centerX = size / 2;
+  const centerY = size / 2;
+  const radius = 250;
+  const maxValue = 100;
+  const ringValues = [20, 40, 60, 80, 100];
+  const dimensionById = new Map(dimensions.map((dimension) => [dimension.id, dimension]));
+  const axes = config.dimensions.map((dimension, index) => {
+    const score = dimensionById.get(dimension.id)?.alignment ?? 50;
+    const meta = RADAR_AXIS_META[dimension.id] ?? {};
+    const angle = (360 / config.dimensions.length) * index;
+    const outerPoint = polarPoint(centerX, centerY, radius, angle);
+    const labelPoint = polarPoint(centerX, centerY, radius + 68, angle);
+
+    return {
+      id: dimension.id,
+      label: meta.label ?? dimension.name,
+      summary: meta.summary ?? dimension.summary,
+      angle,
+      score: clamp(score, 0, maxValue),
+      outerPoint,
+      labelPoint,
+    };
+  });
+
+  const gridMarkup = ringValues
+    .map((value) => {
+      const points = axes
+        .map((axis) => polarPoint(centerX, centerY, (radius * value) / maxValue, axis.angle))
+        .map(pointString)
+        .join(" ");
+
+      return `<polygon class="result-radar-chart__ring" points="${points}"></polygon>`;
+    })
+    .join("");
+
+  const axisMarkup = axes
+    .map(
+      (axis) => `
+        <line class="result-radar-chart__axis" x1="${centerX}" y1="${centerY}" x2="${axis.outerPoint.x.toFixed(1)}" y2="${axis.outerPoint.y.toFixed(1)}"></line>
+        <text
+          class="result-radar-chart__label"
+          x="${axis.labelPoint.x.toFixed(1)}"
+          y="${axis.labelPoint.y.toFixed(1)}"
+          text-anchor="${labelAnchor(axis.labelPoint, centerX)}"
+          dy="${labelDy(axis.labelPoint, centerY)}"
+        >${escapeHtml(axis.label)}</text>
+      `,
+    )
+    .join("");
+
+  const scaleMarkup = ringValues
+    .map((value) => {
+      const labelPoint = polarPoint(centerX, centerY, (radius * value) / maxValue, 0);
+      return `<text class="result-radar-chart__scale-label" x="${centerX + 10}" y="${labelPoint.y.toFixed(1)}">${value}</text>`;
+    })
+    .join("");
+
+  const valuePoints = axes
+    .map((axis) => polarPoint(centerX, centerY, (radius * axis.score) / maxValue, axis.angle))
+    .map(pointString)
+    .join(" ");
+
+  const pointMarkup = axes
+    .map((axis) => {
+      const point = polarPoint(centerX, centerY, (radius * axis.score) / maxValue, axis.angle);
+      return `
+        <circle class="result-radar-chart__point" cx="${point.x.toFixed(1)}" cy="${point.y.toFixed(1)}" r="7">
+          <title>${escapeHtml(axis.label)}: ${axis.score}/100</title>
+        </circle>
+      `;
+    })
+    .join("");
+
+  return `
+    <svg
+      class="result-radar-chart"
+      viewBox="0 0 ${size} ${size}"
+      role="img"
+      aria-label="${escapeHtml(title)} radar chart across strategy, UX flow, research, systems, build, human factors, and content"
+      style="--result-color: ${escapeHtml(color)}; --result-fill: ${hexToRgba(color, 0.16)};"
+    >
+      <g class="result-radar-chart__grid">${gridMarkup}</g>
+      <g>${axisMarkup}</g>
+      <g>${scaleMarkup}</g>
+      <polygon class="result-radar-chart__shape" points="${valuePoints}"></polygon>
+      <g>${pointMarkup}</g>
+    </svg>
+  `;
 }
 
 function renderList(title, items = []) {
@@ -437,7 +595,29 @@ function calculateScores() {
         a.order - b.order,
     );
 
-  return { ranked, dimensions };
+  const [primaryType, secondaryType] = ranked;
+  const resultLabel = getResultLabel(primaryType, secondaryType);
+  const roundedProfile = getRoundedProfile(ranked);
+  const isLowDifferentiation = getResponseVariance(state.answers) < 0.35;
+  const badges = calculateBadges({
+    ranked,
+    dimensions,
+    answers: state.answers,
+    isRoundedProfile: roundedProfile.isRounded,
+  });
+
+  return {
+    ranked,
+    dimensions,
+    badges,
+    primaryType,
+    secondaryType,
+    resultLabel,
+    resultMode: resultLabel.mode,
+    isRoundedProfile: roundedProfile.isRounded,
+    roundedProfile,
+    isLowDifferentiation,
+  };
 }
 
 function getResultLabel(topType, secondType) {
@@ -478,6 +658,123 @@ function renderSystemsSignal(systemsDimension, isActive) {
       </p>
       <p class="systems-signal__note">Keep this as a secondary signal, not a top-level result.</p>
     </div>
+  `;
+}
+
+function getBadgeLevels() {
+  return [...(config.badgeLevels?.length ? config.badgeLevels : DEFAULT_BADGE_LEVELS)].sort(
+    (levelA, levelB) => levelB.minScore - levelA.minScore,
+  );
+}
+
+function getBadgeLevel(score, levels = getBadgeLevels()) {
+  return levels.find((level) => score >= level.minScore) ?? null;
+}
+
+function getComputedBadgeSignal(signal, dimensions, isRoundedProfile) {
+  if (signal.id !== "roundedProfile") {
+    return null;
+  }
+
+  if (isRoundedProfile) {
+    return 88;
+  }
+
+  const topDimensions = dimensions.slice(0, 4);
+
+  if (!topDimensions.length) {
+    return null;
+  }
+
+  return Math.round(topDimensions.reduce((sum, dimension) => sum + dimension.alignment, 0) / topDimensions.length);
+}
+
+function calculateBadges({ ranked, dimensions, isRoundedProfile }) {
+  const roleById = new Map(ranked.map((type) => [type.id, type]));
+  const dimensionById = new Map(dimensions.map((dimension) => [dimension.id, dimension]));
+  const levels = getBadgeLevels();
+
+  return (config.badges ?? [])
+    .map((badge, order) => {
+      let total = 0;
+      let totalWeight = 0;
+
+      (badge.signals ?? []).forEach((signal) => {
+        let value = null;
+
+        if (signal.source === "dimension") {
+          value = dimensionById.get(signal.id)?.alignment;
+        } else if (signal.source === "role") {
+          value = roleById.get(signal.id)?.alignment;
+        } else if (signal.source === "computed") {
+          value = getComputedBadgeSignal(signal, dimensions, isRoundedProfile);
+        }
+
+        // Question-level signals are intentionally skipped until question scoring is exposed.
+        if (!Number.isFinite(value) || !Number.isFinite(signal.weight)) {
+          return;
+        }
+
+        total += value * signal.weight;
+        totalWeight += signal.weight;
+      });
+
+      const score = totalWeight ? Math.round(total / totalWeight) : 0;
+      const level = getBadgeLevel(score, levels);
+
+      return {
+        ...badge,
+        order,
+        score,
+        level,
+        color: level?.color ?? "#d8d1c5",
+        sourceSummary: `${(badge.signals ?? []).length} configured signals`,
+      };
+    })
+    .filter((badge) => badge.level)
+    .sort(
+      (badgeA, badgeB) =>
+        (LEVEL_RANK[badgeB.level.id] ?? 0) - (LEVEL_RANK[badgeA.level.id] ?? 0) ||
+        badgeB.score - badgeA.score ||
+        badgeA.order - badgeB.order,
+    );
+}
+
+function renderBadgePanel(badges) {
+  const visibleBadges = badges.slice(0, MAX_VISIBLE_BADGES);
+  const badgeMarkup = visibleBadges.length
+    ? visibleBadges
+        .map(
+          (badge) => `
+            <article class="designer-badge designer-badge--${escapeHtml(badge.level.id)}" style="--badge-color: ${escapeHtml(badge.color)}">
+              <div class="designer-badge__icon" aria-hidden="true">${escapeHtml(badge.icon)}</div>
+              <div class="designer-badge__copy">
+                <div class="designer-badge__top">
+                  <h4>${escapeHtml(badge.name)}</h4>
+                  <span>${escapeHtml(badge.level.name)}</span>
+                </div>
+                <p>${escapeHtml(badge.description)}</p>
+                <div class="designer-badge__meter" aria-label="${escapeHtml(badge.name)} score ${badge.score} out of 100">
+                  <span style="--badge-score: ${badge.score}%"></span>
+                </div>
+              </div>
+            </article>
+          `,
+        )
+        .join("")
+    : `
+      <p class="badge-panel__empty">
+        No badges unlocked yet - your profile is still emerging. Stronger tradeoffs will make this clearer.
+      </p>
+    `;
+
+  return `
+    <div class="badge-panel__header">
+      <p class="eyebrow">Designer badges</p>
+      <h3>Your strongest sub-signals</h3>
+      <p>Badges summarize skill signals from your answers. They are directional, not credentials.</p>
+    </div>
+    <div class="badge-grid">${badgeMarkup}</div>
   `;
 }
 
@@ -639,15 +936,30 @@ async function saveResultImage() {
 }
 
 function renderResult() {
-  const { ranked, dimensions } = calculateScores();
-  const [topType, secondType] = ranked;
-  const resultLabel = getResultLabel(topType, secondType);
-  const roundedProfile = getRoundedProfile(ranked);
+  const {
+    ranked,
+    dimensions,
+    badges,
+    primaryType: topType,
+    secondaryType: secondType,
+    resultLabel,
+    roundedProfile,
+    isLowDifferentiation,
+  } = calculateScores();
   const topDimensions = dimensions.slice(0, 3);
   const topDimensionIds = topDimensions.map((dimension) => dimension.id);
   const systemsDimension = dimensions.find((dimension) => dimension.id === "systems");
   const hasSystemsSignal = systemsDimension && (systemsDimension.alignment >= 70 || topDimensionIds.includes("systems"));
-  const isLowDifferentiation = getResponseVariance(state.answers) < 0.35;
+  const visualCard = resultRadar.closest(".result-visual-card");
+
+  visualCard?.style.setProperty("--result-color", topType.color);
+  visualCard?.style.setProperty("--result-fill", hexToRgba(topType.color, 0.16));
+  resultRadar.innerHTML = renderRadarChart({
+    dimensions,
+    color: topType.color,
+    title: "Your Designer Skill Shape",
+  });
+  badgePanel.innerHTML = renderBadgePanel(badges);
 
   if (roundedProfile.isRounded) {
     resultEyebrow.textContent = "Rounded profile";
@@ -791,5 +1103,6 @@ restartButton.addEventListener("click", () => {
 
 savePdfButton.addEventListener("click", saveResultPdf);
 saveImageButton.addEventListener("click", saveResultImage);
+printResultButton.addEventListener("click", () => window.print());
 
 renderTypePreview();
