@@ -74,6 +74,10 @@ The quiz result renders a static SVG radar chart based on dimension alignment sc
 
 Badges are configurable sub-signals derived from role and dimension scores. Badge levels are Bronze, Silver, and Gold. They are directional reflections, not credentials.
 
+## Badge Glossary
+
+The home page includes a badge glossary below the possible outcomes section. It renders from the configured badge definitions, showing the badge name, description, and the role/dimension/computed signals used to calculate it.
+
 ## Deployment
 
 If GitHub Pages is configured to publish from `main` and the repository root:

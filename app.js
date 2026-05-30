@@ -42,6 +42,8 @@ const resultRadar = byId("result-radar");
 const badgePanel = byId("badge-panel");
 const dimensionSummary = byId("dimension-summary");
 const nextSteps = byId("next-steps");
+const badgeGlossaryGrid = document.getElementById("badge-glossary-grid");
+const badgeGlossaryLevels = document.getElementById("badge-glossary-levels");
 
 const state = {
   index: 0,
@@ -93,6 +95,24 @@ function setSaveStatus(message, isError = false) {
 
 function getDimension(id) {
   return config.dimensions.find((dimension) => dimension.id === id);
+}
+
+function getRoleLabel(roleId) {
+  return (config.types ?? []).find((type) => type.id === roleId)?.name ?? roleId ?? "unknown";
+}
+
+function getDimensionLabel(dimensionId) {
+  return (config.dimensions ?? []).find((dimension) => dimension.id === dimensionId)?.name ?? dimensionId ?? "unknown";
+}
+
+function getQuestionLabel(questionId) {
+  const question = (config.questions ?? []).find((item) => item.id === questionId);
+
+  if (!question) {
+    return questionId ?? "unknown";
+  }
+
+  return `${question.id}: ${question.prompt}`;
 }
 
 function normalizeAlignment(rawScore, maxAbsScore) {
@@ -667,6 +687,10 @@ function getBadgeLevels() {
   );
 }
 
+function getBadgeDefinitions() {
+  return config.badges ?? (typeof DEFAULT_BADGES !== "undefined" ? DEFAULT_BADGES : []);
+}
+
 function getBadgeLevel(score, levels = getBadgeLevels()) {
   return levels.find((level) => score >= level.minScore) ?? null;
 }
@@ -694,7 +718,7 @@ function calculateBadges({ ranked, dimensions, isRoundedProfile }) {
   const dimensionById = new Map(dimensions.map((dimension) => [dimension.id, dimension]));
   const levels = getBadgeLevels();
 
-  return (config.badges ?? [])
+  return getBadgeDefinitions()
     .map((badge, order) => {
       let total = 0;
       let totalWeight = 0;
@@ -775,6 +799,113 @@ function renderBadgePanel(badges) {
       <p>Badges summarize skill signals from your answers. They are directional, not credentials.</p>
     </div>
     <div class="badge-grid">${badgeMarkup}</div>
+  `;
+}
+
+function formatWeightPercent(weight) {
+  if (!Number.isFinite(weight)) {
+    return "";
+  }
+
+  return `${Math.round(weight * 100)}%`;
+}
+
+function formatBadgeSignal(signal = {}) {
+  const percent = formatWeightPercent(signal.weight);
+  const suffix = percent ? ` (${percent})` : "";
+
+  switch (signal.source) {
+    case "dimension":
+      return `${getDimensionLabel(signal.id)}${suffix}`;
+    case "role":
+      return `${getRoleLabel(signal.id)} alignment${suffix}`;
+    case "question":
+      return `${getQuestionLabel(signal.id)}${suffix}`;
+    case "computed":
+      if (signal.id === "roundedProfile") {
+        return `Rounded profile / balanced high scores${suffix}`;
+      }
+
+      return `Computed signal: ${signal.id ?? "unknown"}${suffix}`;
+    default:
+      return `${signal.source ?? "Signal"}: ${signal.id ?? "unknown"}${suffix}`;
+  }
+}
+
+function formatBadgeFormula(badge = {}) {
+  if (!badge.signals?.length) {
+    return "Configured manually.";
+  }
+
+  return badge.signals.map(formatBadgeSignal).join(" + ");
+}
+
+function formatBadgeLevels() {
+  const levels = getBadgeLevels().sort((levelA, levelB) => levelA.minScore - levelB.minScore);
+
+  if (!levels.length) {
+    return "Badge levels are calculated from each badge score.";
+  }
+
+  return levels
+    .map((level) => {
+      const name = level.name ?? level.id ?? "Level";
+      const threshold = Number.isFinite(level.minScore) ? `${level.minScore}+` : "threshold";
+
+      return `${name} ${threshold}`;
+    })
+    .join(" · ");
+}
+
+function renderBadgeGlossaryRow(badge = {}) {
+  return `
+    <article class="badge-glossary-row" role="row">
+      <div class="badge-glossary-cell badge-glossary-cell--badge" role="cell" data-label="Badge">
+        <span class="badge-glossary-icon" aria-hidden="true">${escapeHtml(badge.icon ?? "•")}</span>
+        <div>
+          <h3>${escapeHtml(badge.name ?? "Unnamed badge")}</h3>
+          <p>${escapeHtml(badge.id ?? "badge")}</p>
+        </div>
+      </div>
+
+      <div class="badge-glossary-cell" role="cell" data-label="Description">
+        <p>${escapeHtml(badge.description ?? "No description provided.")}</p>
+      </div>
+
+      <div class="badge-glossary-cell" role="cell" data-label="How it is calculated">
+        <p>${escapeHtml(formatBadgeFormula(badge))}</p>
+      </div>
+    </article>
+  `;
+}
+
+function renderBadgeGlossary() {
+  if (!badgeGlossaryGrid) {
+    return;
+  }
+
+  const badges = getBadgeDefinitions();
+
+  if (badgeGlossaryLevels) {
+    badgeGlossaryLevels.textContent = `${formatBadgeLevels()} · Directional signals, not credentials.`;
+  }
+
+  if (!badges.length) {
+    badgeGlossaryGrid.innerHTML = `
+      <p class="badge-glossary__empty">
+        Badge definitions have not been configured yet.
+      </p>
+    `;
+    return;
+  }
+
+  badgeGlossaryGrid.innerHTML = `
+    <div class="badge-glossary-row badge-glossary-row--header" role="row">
+      <div role="columnheader">Badge</div>
+      <div role="columnheader">Description</div>
+      <div role="columnheader">How it is calculated</div>
+    </div>
+    ${badges.map(renderBadgeGlossaryRow).join("")}
   `;
 }
 
@@ -1106,3 +1237,4 @@ saveImageButton.addEventListener("click", saveResultImage);
 printResultButton.addEventListener("click", () => window.print());
 
 renderTypePreview();
+renderBadgeGlossary();
