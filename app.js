@@ -713,7 +713,28 @@ function getComputedBadgeSignal(signal, dimensions, isRoundedProfile) {
   return Math.round(topDimensions.reduce((sum, dimension) => sum + dimension.alignment, 0) / topDimensions.length);
 }
 
-function calculateBadges({ ranked, dimensions, isRoundedProfile }) {
+function getQuestionBadgeSignal(signal, answers) {
+  const questionIndex = config.questions.findIndex((question) => question.id === signal.id);
+
+  if (questionIndex < 0) {
+    return null;
+  }
+
+  const answer = answers[questionIndex];
+
+  if (!Number.isFinite(answer)) {
+    return null;
+  }
+
+  const question = config.questions[questionIndex];
+  const keyedAnswer = question.reverse ? 6 - answer : answer;
+  const direction = signal.direction === "disagree" ? "disagree" : "agree";
+
+  // Maps the requested answer direction to a 0-100 badge signal, with Neutral at 50.
+  return direction === "disagree" ? Math.round(((5 - keyedAnswer) / 4) * 100) : Math.round(((keyedAnswer - 1) / 4) * 100);
+}
+
+function calculateBadges({ ranked, dimensions, answers = [], isRoundedProfile }) {
   const roleById = new Map(ranked.map((type) => [type.id, type]));
   const dimensionById = new Map(dimensions.map((dimension) => [dimension.id, dimension]));
   const levels = getBadgeLevels();
@@ -732,9 +753,10 @@ function calculateBadges({ ranked, dimensions, isRoundedProfile }) {
           value = roleById.get(signal.id)?.alignment;
         } else if (signal.source === "computed") {
           value = getComputedBadgeSignal(signal, dimensions, isRoundedProfile);
+        } else if (signal.source === "question") {
+          value = getQuestionBadgeSignal(signal, answers);
         }
 
-        // Question-level signals are intentionally skipped until question scoring is exposed.
         if (!Number.isFinite(value) || !Number.isFinite(signal.weight)) {
           return;
         }
@@ -820,7 +842,7 @@ function formatBadgeSignal(signal = {}) {
     case "role":
       return `${getRoleLabel(signal.id)} alignment${suffix}`;
     case "question":
-      return `${getQuestionLabel(signal.id)}${suffix}`;
+      return `${signal.direction === "disagree" ? "Disagree with" : "Agree with"} ${getQuestionLabel(signal.id)}${suffix}`;
     case "computed":
       if (signal.id === "roundedProfile") {
         return `Rounded profile / balanced high scores${suffix}`;

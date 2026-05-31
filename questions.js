@@ -292,6 +292,18 @@ window.DESIGNER_TYPE_TEST = {
       ],
     },
     {
+      id: "honorary-software-engineer",
+      name: "Honorary Software Engineer",
+      icon: "</>",
+      description: "You lean hard toward code, debugging, realistic prototypes, and implementation constraints.",
+      signals: [
+        { source: "question", id: "q18", weight: 0.25, direction: "agree" },
+        { source: "question", id: "q19", weight: 0.25, direction: "agree" },
+        { source: "question", id: "q20", weight: 0.25, direction: "disagree" },
+        { source: "question", id: "q21", weight: 0.25, direction: "agree" },
+      ],
+    },
+    {
       id: "risk-spotter",
       name: "Risk Spotter",
       icon: "!",
