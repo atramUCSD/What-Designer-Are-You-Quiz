@@ -22,18 +22,22 @@ const scoreStack = byId("score-stack");
 const questionNumber = byId("question-number");
 const questionTotal = byId("question-total");
 const questionText = byId("question-text");
-const questionDimension = byId("question-dimension");
+const questionProgress = byId("question-progress");
 const progressBar = byId("progress-bar");
 const answerScale = byId("answer-scale");
+const audienceContextOptions = byId("audience-context-options");
 const startButton = byId("start-button");
 const backButton = byId("back-button");
 const nextButton = byId("next-button");
 const restartButton = byId("restart-button");
+const changeContextButton = byId("change-context-button");
 const savePdfButton = byId("save-pdf-button");
 const saveImageButton = byId("save-image-button");
 const printResultButton = byId("print-result-button");
 const saveStatus = byId("save-status");
 const resultEyebrow = byId("result-eyebrow");
+const resultContext = byId("result-context");
+const resultAnnouncement = byId("result-announcement");
 const resultTitle = byId("result-title");
 const resultSummary = byId("result-summary");
 const responseWarning = byId("response-warning");
@@ -45,11 +49,65 @@ const nextSteps = byId("next-steps");
 const badgeGlossaryGrid = document.getElementById("badge-glossary-grid");
 const badgeGlossaryLevels = document.getElementById("badge-glossary-levels");
 
+const STORAGE_KEY = "what-designer-are-you-progress";
+
+function isAudienceContextId(value) {
+  return (config.audienceContexts ?? []).some((context) => context.id === value);
+}
+
+function loadSavedProgress() {
+  try {
+    const saved = JSON.parse(window.localStorage.getItem(STORAGE_KEY));
+
+    if (saved?.questionSetVersion !== config.questionSetVersion || !isAudienceContextId(saved.audienceContext)) {
+      return null;
+    }
+
+    if (!Array.isArray(saved.answers) || saved.answers.length !== config.questions.length) {
+      return null;
+    }
+
+    return {
+      audienceContext: saved.audienceContext,
+      index: clamp(Number.isInteger(saved.index) ? saved.index : 0, 0, config.questions.length - 1),
+      answers: saved.answers.map((answer) => (Number.isInteger(answer) && answer >= 1 && answer <= 5 ? answer : null)),
+    };
+  } catch {
+    return null;
+  }
+}
+
+const savedProgress = loadSavedProgress();
 const state = {
-  index: 0,
-  answers: Array(config.questions.length).fill(null),
+  index: savedProgress?.index ?? 0,
+  answers: savedProgress?.answers ?? Array(config.questions.length).fill(null),
+  audienceContext: savedProgress?.audienceContext ?? null,
   resultFileBase: "designer-type-result",
 };
+
+function persistProgress() {
+  try {
+    window.localStorage.setItem(
+      STORAGE_KEY,
+      JSON.stringify({
+        questionSetVersion: config.questionSetVersion,
+        audienceContext: state.audienceContext,
+        index: state.index,
+        answers: state.answers,
+      }),
+    );
+  } catch {
+    // Storage may be unavailable in private browsing; the quiz still works in memory.
+  }
+}
+
+function clearSavedProgress() {
+  try {
+    window.localStorage.removeItem(STORAGE_KEY);
+  } catch {
+    // No action is needed when storage is unavailable.
+  }
+}
 
 function show(element) {
   element.hidden = false;
@@ -93,6 +151,11 @@ function setSaveStatus(message, isError = false) {
   saveStatus.classList.toggle("save-status--error", isError);
 }
 
+function setButtonBusy(button, isBusy) {
+  button.disabled = isBusy;
+  button.setAttribute("aria-busy", String(isBusy));
+}
+
 function getDimension(id) {
   return config.dimensions.find((dimension) => dimension.id === id);
 }
@@ -113,6 +176,41 @@ function getQuestionLabel(questionId) {
   }
 
   return `${question.id}: ${question.prompt}`;
+}
+
+function getAudienceContext() {
+  return (config.audienceContexts ?? []).find((context) => context.id === state.audienceContext) ?? null;
+}
+
+function renderAudienceContexts() {
+  audienceContextOptions.innerHTML = (config.audienceContexts ?? [])
+    .map(
+      (context) => `
+        <label class="audience-context__option">
+          <input
+            type="radio"
+            name="audience-context"
+            value="${escapeHtml(context.id)}"
+            ${state.audienceContext === context.id ? "checked" : ""}
+          >
+          <span>
+            <strong>${escapeHtml(context.name)}</strong>
+            <small>${escapeHtml(context.description)}</small>
+          </span>
+        </label>
+      `,
+    )
+    .join("");
+
+  startButton.disabled = !getAudienceContext();
+}
+
+function renderExternalLinkIcon() {
+  return `
+    <svg class="external-link-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+      <path d="M14 5h5v5M19 5l-8 8M19 13v5a1 1 0 0 1-1 1H6a1 1 0 0 1-1-1V6a1 1 0 0 1 1-1h5"></path>
+    </svg>
+  `;
 }
 
 function normalizeAlignment(rawScore, maxAbsScore) {
@@ -320,18 +418,21 @@ function renderCompanySection(type) {
           href="${escapeHtml(company.url)}"
           target="_blank"
           rel="noreferrer noopener"
-          title="${escapeHtml(company.name)} careers"
-          aria-label="${escapeHtml(company.name)} careers"
+          title="Explore career opportunities at ${escapeHtml(company.name)}"
+          aria-label="Explore career opportunities at ${escapeHtml(company.name)} (opens in a new tab)"
         >
-          <img
-            class="company-chip__logo"
-            src="${escapeHtml(company.logo)}"
-            alt=""
-            aria-hidden="true"
-            loading="lazy"
-            onerror="this.hidden = true"
-          >
+          <span class="company-logo-frame" aria-hidden="true">
+            <img
+              class="company-chip__logo"
+              src="${escapeHtml(company.logo)}"
+              alt=""
+              loading="lazy"
+              onerror="this.hidden = true; this.nextElementSibling.hidden = false"
+            >
+            <span class="company-logo-fallback" hidden>${escapeHtml(company.name.slice(0, 1))}</span>
+          </span>
           <span>${escapeHtml(company.name)}</span>
+          ${renderExternalLinkIcon()}
         </a>
       `,
     )
@@ -348,7 +449,7 @@ function renderCompanySection(type) {
 
   return `
     <div class="type-card__companies">
-      <p class="type-card__meta-label">Well-known recruiters</p>
+      <p class="type-card__meta-label">Career opportunities</p>
       <div class="company-chip-row">${companyChips}</div>
       ${additionalText}
     </div>
@@ -382,8 +483,8 @@ function renderResultCompanySection(types) {
 
   return `
     <section class="result-company-section">
-      <h3>Companies to study</h3>
-      <p>Use these as reference points for role language, portfolios, and job descriptions tied to your result.</p>
+      <h3>Career opportunities</h3>
+      <p>Explore how these organizations describe design roles, teams, skills, and career paths.</p>
       <div class="result-company-grid">
         ${companies
           .map(
@@ -393,22 +494,27 @@ function renderResultCompanySection(types) {
                 href="${escapeHtml(company.url)}"
                 target="_blank"
                 rel="noreferrer noopener"
-                title="${escapeHtml(company.name)} careers"
+                title="Explore career opportunities at ${escapeHtml(company.name)}"
+                aria-label="Explore career opportunities at ${escapeHtml(company.name)} (opens in a new tab)"
               >
-                <img
-                  class="result-company-card__logo"
-                  src="${escapeHtml(company.logo)}"
-                  alt=""
-                  aria-hidden="true"
-                  loading="lazy"
-                  onerror="this.hidden = true"
-                >
+                <span class="company-logo-frame" aria-hidden="true">
+                  <img
+                    class="result-company-card__logo"
+                    src="${escapeHtml(company.logo)}"
+                    alt=""
+                    loading="lazy"
+                    onerror="this.hidden = true; this.nextElementSibling.hidden = false"
+                  >
+                  <span class="company-logo-fallback" hidden>${escapeHtml(company.name.slice(0, 1))}</span>
+                </span>
                 <span>${escapeHtml(company.name)}</span>
+                ${renderExternalLinkIcon()}
               </a>
             `,
           )
           .join("")}
       </div>
+      <p class="career-opportunities-disclaimer">Organizations are examples for exploration. Links do not guarantee current openings.</p>
     </section>
   `;
 }
@@ -448,19 +554,23 @@ function renderScale() {
 
 function renderQuestion() {
   const question = config.questions[state.index];
-  const dimension = getDimension(question.dimension);
+  const currentQuestion = state.index + 1;
 
-  questionNumber.textContent = String(state.index + 1);
+  questionNumber.textContent = String(currentQuestion);
   questionTotal.textContent = String(config.questions.length);
   questionText.textContent = question.prompt;
-  questionDimension.textContent = dimension ? dimension.name : question.dimension;
-  progressBar.style.width = `${((state.index + 1) / config.questions.length) * 100}%`;
+  progressBar.style.width = `${(currentQuestion / config.questions.length) * 100}%`;
+  questionProgress.setAttribute("aria-valuemax", String(config.questions.length));
+  questionProgress.setAttribute("aria-valuenow", String(currentQuestion));
+  questionProgress.setAttribute("aria-valuetext", `Question ${currentQuestion} of ${config.questions.length}`);
 
   backButton.disabled = state.index === 0;
   nextButton.disabled = state.answers[state.index] === null;
   nextButton.textContent = state.index === config.questions.length - 1 ? "See result" : "Next";
 
   renderScale();
+  quizCard.classList.remove("is-question-entering");
+  window.requestAnimationFrame(() => quizCard.classList.add("is-question-entering"));
 }
 
 function isBlendPair(typeA, typeB) {
@@ -832,9 +942,9 @@ function formatWeightPercent(weight) {
   return `${Math.round(weight * 100)}%`;
 }
 
-function formatBadgeSignal(signal = {}) {
+function formatBadgeSignal(signal = {}, includeWeight = true) {
   const percent = formatWeightPercent(signal.weight);
-  const suffix = percent ? ` (${percent})` : "";
+  const suffix = includeWeight && percent ? ` (${percent})` : "";
 
   switch (signal.source) {
     case "dimension":
@@ -876,28 +986,38 @@ function formatBadgeLevels() {
 
       return `${name} ${threshold}`;
     })
-    .join(" · ");
+    .join(" / ");
 }
 
 function renderBadgeGlossaryRow(badge = {}) {
+  const signals = badge.signals?.length
+    ? badge.signals
+        .map((signal) => `<span class="badge-signal-chip">${escapeHtml(formatBadgeSignal(signal, false))}</span>`)
+        .join("")
+    : `<span class="badge-signal-chip">Configured manually</span>`;
+
   return `
-    <article class="badge-glossary-row" role="row">
-      <div class="badge-glossary-cell badge-glossary-cell--badge" role="cell" data-label="Badge">
-        <span class="badge-glossary-icon" aria-hidden="true">${escapeHtml(badge.icon ?? "•")}</span>
+    <tr class="badge-glossary-row">
+      <td class="badge-glossary-cell badge-glossary-cell--badge" data-label="Badge">
+        <span class="badge-glossary-icon" aria-hidden="true">${escapeHtml(badge.icon ?? "*")}</span>
         <div>
           <h3>${escapeHtml(badge.name ?? "Unnamed badge")}</h3>
           <p>${escapeHtml(badge.id ?? "badge")}</p>
         </div>
-      </div>
+      </td>
 
-      <div class="badge-glossary-cell" role="cell" data-label="Description">
+      <td class="badge-glossary-cell" data-label="Description">
         <p>${escapeHtml(badge.description ?? "No description provided.")}</p>
-      </div>
+      </td>
 
-      <div class="badge-glossary-cell" role="cell" data-label="How it is calculated">
-        <p>${escapeHtml(formatBadgeFormula(badge))}</p>
-      </div>
-    </article>
+      <td class="badge-glossary-cell badge-glossary-cell--signals" data-label="How it is calculated">
+        <div class="badge-signal-list">${signals}</div>
+        <details class="badge-formula-details">
+          <summary>View weighting</summary>
+          <p>${escapeHtml(formatBadgeFormula(badge))}</p>
+        </details>
+      </td>
+    </tr>
   `;
 }
 
@@ -909,26 +1029,17 @@ function renderBadgeGlossary() {
   const badges = getBadgeDefinitions();
 
   if (badgeGlossaryLevels) {
-    badgeGlossaryLevels.textContent = `${formatBadgeLevels()} · Directional signals, not credentials.`;
+    badgeGlossaryLevels.textContent = `${formatBadgeLevels()} / Directional signals, not credentials.`;
   }
 
   if (!badges.length) {
     badgeGlossaryGrid.innerHTML = `
-      <p class="badge-glossary__empty">
-        Badge definitions have not been configured yet.
-      </p>
+      <tr><td class="badge-glossary__empty" colspan="3">Badge definitions have not been configured yet.</td></tr>
     `;
     return;
   }
 
-  badgeGlossaryGrid.innerHTML = `
-    <div class="badge-glossary-row badge-glossary-row--header" role="row">
-      <div role="columnheader">Badge</div>
-      <div role="columnheader">Description</div>
-      <div role="columnheader">How it is calculated</div>
-    </div>
-    ${badges.map(renderBadgeGlossaryRow).join("")}
-  `;
+  badgeGlossaryGrid.innerHTML = badges.map(renderBadgeGlossaryRow).join("");
 }
 
 function downloadUrl(url, filename) {
@@ -965,7 +1076,7 @@ function buildResultExportClone() {
   wrapper.style.left = "-10000px";
   wrapper.style.top = "0";
   wrapper.style.width = `${exportWidth}px`;
-  wrapper.style.background = "#f6f2ea";
+  wrapper.style.background = "#f4f7f8";
   wrapper.style.pointerEvents = "none";
 
   clone.hidden = false;
@@ -1024,8 +1135,10 @@ function saveResultPdf() {
     return;
   }
 
-  setSaveStatus("Choose Save as PDF in the print dialog.");
+  setButtonBusy(savePdfButton, true);
+  setSaveStatus("Opening the print dialog. Choose Save as PDF to export your result.");
   window.print();
+  window.setTimeout(() => setButtonBusy(savePdfButton, false), 500);
 }
 
 async function saveResultImage() {
@@ -1038,7 +1151,7 @@ async function saveResultImage() {
   let svgText = "";
 
   try {
-    saveImageButton.disabled = true;
+    setButtonBusy(saveImageButton, true);
     setSaveStatus("Preparing image export...");
 
     const exportClone = buildResultExportClone();
@@ -1084,11 +1197,21 @@ async function saveResultImage() {
     }
 
     wrapper?.remove();
-    saveImageButton.disabled = false;
+    setButtonBusy(saveImageButton, false);
   }
 }
 
 function renderResult() {
+  const audienceContext = getAudienceContext();
+
+  if (!audienceContext) {
+    hide(quizCard);
+    hide(resultCard);
+    show(introPanel);
+    renderAudienceContexts();
+    return;
+  }
+
   const {
     ranked,
     dimensions,
@@ -1104,6 +1227,8 @@ function renderResult() {
   const systemsDimension = dimensions.find((dimension) => dimension.id === "systems");
   const hasSystemsSignal = systemsDimension && (systemsDimension.alignment >= 70 || topDimensionIds.includes("systems"));
   const visualCard = resultRadar.closest(".result-visual-card");
+
+  resultContext.textContent = `Guidance for ${audienceContext.name.toLowerCase()}. ${audienceContext.resultIntroduction}`;
 
   visualCard?.style.setProperty("--result-color", topType.color);
   visualCard?.style.setProperty("--result-fill", hexToRgba(topType.color, 0.16));
@@ -1168,23 +1293,27 @@ function renderResult() {
   `;
 
   const companyReferenceTypes = roundedProfile.isRounded ? ranked.slice(0, 4) : [topType, secondType].filter(Boolean);
+  const guidanceHeadings = audienceContext.headings ?? {};
   const nextStepSections = roundedProfile.isRounded
     ? [
-        renderResultCompanySection(companyReferenceTypes),
         renderList("How to use this result", [
           "Position yourself around the top two lanes instead of claiming every lane equally.",
           "Build one portfolio project that shows breadth: research, interaction, content, systems, and implementation judgment.",
           "Use the ranked scores to choose which job descriptions and portfolios to study first.",
         ]),
-        renderList(`Strongest lane: ${topType.name}`, topType.skillsToBuild),
-        renderList("Roles to explore", Array.from(new Set(ranked.slice(0, 3).flatMap((type) => type.rolesToExplore ?? []))).slice(0, 6)),
+        renderList(guidanceHeadings.skills ?? `Strongest lane: ${topType.name}`, topType.skillsToBuild),
+        renderList(
+          guidanceHeadings.roles ?? "Roles to explore",
+          Array.from(new Set(ranked.slice(0, 3).flatMap((type) => type.rolesToExplore ?? []))).slice(0, 6),
+        ),
+        renderResultCompanySection(companyReferenceTypes),
       ]
     : [
-        renderResultCompanySection(companyReferenceTypes),
         renderList("Strengths", topType.strengths),
-        renderList("Project ideas", topType.projectIdeas),
-        renderList("Skills to build next", topType.skillsToBuild),
-        renderList("Roles to explore", topType.rolesToExplore),
+        renderList(guidanceHeadings.projects ?? "Project ideas", topType.projectIdeas),
+        renderList(guidanceHeadings.skills ?? "Skills to build next", topType.skillsToBuild),
+        renderList(guidanceHeadings.roles ?? "Roles to explore", topType.rolesToExplore),
+        renderResultCompanySection(companyReferenceTypes),
       ];
 
   nextSteps.innerHTML = nextStepSections.join("");
@@ -1207,27 +1336,48 @@ function renderResult() {
 
   hide(quizCard);
   show(resultCard);
+  resultCard.classList.remove("is-revealed");
+  window.requestAnimationFrame(() => resultCard.classList.add("is-revealed"));
+  resultAnnouncement.textContent = `Your result is ${resultTitle.textContent}.`;
+  persistProgress();
   resultCard.scrollIntoView({ behavior: "smooth", block: "start" });
 }
 
 startButton.addEventListener("click", () => {
+  if (!getAudienceContext()) {
+    return;
+  }
+
   hide(introPanel);
   hide(resultCard);
   show(quizCard);
   renderQuestion();
+  persistProgress();
   quizCard.scrollIntoView({ behavior: "smooth", block: "start" });
+});
+
+audienceContextOptions.addEventListener("change", (event) => {
+  if (!(event.target instanceof HTMLInputElement) || !isAudienceContextId(event.target.value)) {
+    return;
+  }
+
+  state.audienceContext = event.target.value;
+  startButton.disabled = false;
+  persistProgress();
 });
 
 answerScale.addEventListener("change", (event) => {
   if (event.target instanceof HTMLInputElement) {
     state.answers[state.index] = Number.parseInt(event.target.value, 10);
     nextButton.disabled = false;
+    persistProgress();
   }
 });
 
 backButton.addEventListener("click", () => {
   state.index = Math.max(0, state.index - 1);
   renderQuestion();
+  persistProgress();
 });
 
 nextButton.addEventListener("click", () => {
@@ -1242,6 +1392,7 @@ nextButton.addEventListener("click", () => {
 
   state.index += 1;
   renderQuestion();
+  persistProgress();
   focusQuestionViewport();
 });
 
@@ -1251,12 +1402,56 @@ restartButton.addEventListener("click", () => {
   setSaveStatus("");
   hide(resultCard);
   show(introPanel);
+  renderAudienceContexts();
+  persistProgress();
   introPanel.scrollIntoView({ behavior: "smooth", block: "start" });
+});
+
+changeContextButton.addEventListener("click", () => {
+  state.index = 0;
+  state.answers = Array(config.questions.length).fill(null);
+  state.audienceContext = null;
+  clearSavedProgress();
+  setSaveStatus("");
+  hide(resultCard);
+  hide(quizCard);
+  show(introPanel);
+  renderAudienceContexts();
+  introPanel.scrollIntoView({ behavior: "smooth", block: "start" });
+});
+
+document.addEventListener("keydown", (event) => {
+  if (quizCard.hidden || event.altKey || event.ctrlKey || event.metaKey) {
+    return;
+  }
+
+  if (/^[1-5]$/.test(event.key)) {
+    const input = answerScale.querySelector(`input[value="${event.key}"]`);
+
+    if (input instanceof HTMLInputElement) {
+      input.checked = true;
+      input.dispatchEvent(new Event("change", { bubbles: true }));
+      input.focus();
+      event.preventDefault();
+    }
+
+    return;
+  }
+
+  const activeElement = document.activeElement;
+  const isNativeAction = activeElement instanceof HTMLButtonElement || activeElement instanceof HTMLAnchorElement;
+
+  if (event.key === "Enter" && !nextButton.disabled && !isNativeAction) {
+    nextButton.click();
+    event.preventDefault();
+  }
 });
 
 savePdfButton.addEventListener("click", saveResultPdf);
 saveImageButton.addEventListener("click", saveResultImage);
 printResultButton.addEventListener("click", () => window.print());
+window.addEventListener("afterprint", () => setButtonBusy(savePdfButton, false));
 
+renderAudienceContexts();
 renderTypePreview();
 renderBadgeGlossary();

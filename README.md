@@ -1,12 +1,6 @@
 # What Designer Are You Quiz
 
-Static GitHub Pages quiz for the UCSD CSSA presentation.
-
-## Live URL
-
-```text
-https://atramucsd.github.io/What-Designer-Are-You-Quiz/
-```
+Static GitHub Pages design-career reflection tool for people exploring design, building their practice, or working across design specialties.
 
 ## Local development
 
@@ -44,6 +38,8 @@ This checks the standalone JavaScript files for syntax errors.
 - Added reverse-scored item support.
 - Added primary, blended, and strong secondary result handling.
 - Added richer result copy: strengths, project ideas, skills to build, roles to explore, and top dimensions.
+- Collects a required, unscored journey stage so guidance headings can match whether someone is exploring, learning, or practicing.
+- Saves in-progress answers and journey stage locally, invalidating saved progress when the configured question-set version changes.
 
 ## Scoring model
 
@@ -78,6 +74,10 @@ Badges are configurable sub-signals derived from role and dimension scores. Badg
 
 The home page includes a badge glossary below the possible outcomes section. It renders from the configured badge definitions, showing the badge name, description, and the role/dimension/computed signals used to calculate it.
 
+## Career Opportunities
+
+Outcome previews and result guidance link to organization career pages so people can explore how design teams describe roles, skills, and career paths. Organizations are examples for exploration; links do not guarantee current openings.
+
 ## Deployment
 
 If GitHub Pages is configured to publish from `main` and the repository root:
@@ -100,7 +100,7 @@ git push origin gh-pages
 
 ## Caveat
 
-This is a directional career reflection tool for students. It is not a validated career diagnosis, hiring screen, or fixed identity label.
+This is a directional career reflection tool for people at any experience level. It is not a credential, diagnosis, hiring assessment, or fixed identity label.
 
 ## Company Logos
 
