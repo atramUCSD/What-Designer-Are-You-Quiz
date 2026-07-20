@@ -6,5 +6,10 @@
   "scripts": {
     "start": "node serve-local.mjs",
     "check": "node --check app.js && node --check questions.js && node --check serve-local.mjs"
+  },
+  "devDependencies": {
+    "@fontsource-variable/manrope": "^5.3.0",
+    "lucide-static": "^1.25.0",
+    "motion": "^12.42.2"
   }
 }

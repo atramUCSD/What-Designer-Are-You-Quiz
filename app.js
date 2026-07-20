@@ -121,6 +121,75 @@ function hide(element) {
   element.hidden = true;
 }
 
+function canUseMotion() {
+  return Boolean(window.Motion?.animate) && !window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+}
+
+function animateQuestionEntry() {
+  if (!canUseMotion()) {
+    return;
+  }
+
+  window.Motion.animate(
+    [questionText, answerScale],
+    { opacity: [0, 1], y: [8, 0] },
+    { duration: 0.22, delay: window.Motion.stagger(0.045), ease: [0.22, 1, 0.36, 1] },
+  );
+}
+
+function animateResultEntry() {
+  if (!canUseMotion()) {
+    return;
+  }
+
+  const resultSections = [
+    resultCard.querySelector(".result-copy"),
+    resultCard.querySelector(".result-visual-card"),
+    badgePanel,
+    dimensionSummary,
+    nextSteps,
+    resultCard.querySelector(".score-panel"),
+    resultCard.querySelector(".result-actions"),
+  ].filter(Boolean);
+
+  window.Motion.animate(
+    resultSections,
+    { opacity: [0, 1], y: [12, 0] },
+    { duration: 0.32, delay: window.Motion.stagger(0.055), ease: [0.22, 1, 0.36, 1] },
+  );
+
+  const radarShape = resultRadar.querySelector(".result-radar-chart__shape");
+  const badgeMeters = badgePanel.querySelectorAll(".designer-badge__meter span");
+
+  if (radarShape) {
+    window.Motion.animate(
+      radarShape,
+      { opacity: [0, 1], scale: [0.86, 1] },
+      { duration: 0.48, delay: 0.08, ease: [0.22, 1, 0.36, 1] },
+    );
+  }
+
+  window.Motion.animate(
+    badgeMeters,
+    { scaleX: [0, 1] },
+    { duration: 0.42, delay: window.Motion.stagger(0.04, { startDelay: 0.14 }), ease: "easeOut" },
+  );
+}
+
+function initializeInViewMotion() {
+  if (!canUseMotion() || !window.Motion.inView) {
+    return;
+  }
+
+  window.Motion.inView(".type-card, .badge-glossary-row", (element) => {
+    window.Motion.animate(
+      element,
+      { opacity: [0, 1], y: [14, 0] },
+      { duration: 0.3, ease: [0.22, 1, 0.36, 1] },
+    );
+  }, { margin: "0px 0px -8% 0px" });
+}
+
 function setCollapsibleSection(toggle, content, collapsed) {
   const action = collapsed ? "Expand" : "Minimize";
   const sectionName = toggle.dataset.sectionName ?? "section";
@@ -129,6 +198,10 @@ function setCollapsibleSection(toggle, content, collapsed) {
   toggle.setAttribute("aria-expanded", String(!collapsed));
   toggle.setAttribute("aria-label", `${action} ${sectionName}`);
   toggle.querySelector("span").textContent = action;
+
+  if (!collapsed && canUseMotion()) {
+    window.Motion.animate(content, { opacity: [0, 1], y: [-6, 0] }, { duration: 0.2, ease: "easeOut" });
+  }
 }
 
 function toggleCollapsibleSection(toggle, content) {
@@ -592,8 +665,7 @@ function renderQuestion() {
   nextButton.textContent = state.index === config.questions.length - 1 ? "See result" : "Next";
 
   renderScale();
-  quizCard.classList.remove("is-question-entering");
-  window.requestAnimationFrame(() => quizCard.classList.add("is-question-entering"));
+  animateQuestionEntry();
 }
 
 function isBlendPair(typeA, typeB) {
@@ -1359,8 +1431,7 @@ function renderResult() {
 
   hide(quizCard);
   show(resultCard);
-  resultCard.classList.remove("is-revealed");
-  window.requestAnimationFrame(() => resultCard.classList.add("is-revealed"));
+  animateResultEntry();
   resultAnnouncement.textContent = `Your result is ${resultTitle.textContent}.`;
   persistProgress();
   resultCard.scrollIntoView({ behavior: "smooth", block: "start" });
@@ -1487,3 +1558,4 @@ window.addEventListener("afterprint", () => setButtonBusy(savePdfButton, false))
 renderAudienceContexts();
 renderTypePreview();
 renderBadgeGlossary();
+initializeInViewMotion();
