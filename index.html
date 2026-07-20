@@ -140,15 +140,31 @@
 
     <section class="type-preview" id="type-preview">
       <div class="section-heading">
-        <p class="eyebrow">Possible outcomes</p>
-        <h2>Seven design-adjacent directions, plus systems thinking signals.</h2>
+        <div>
+          <p class="eyebrow">Possible outcomes</p>
+          <h2>Seven design-adjacent directions, plus systems thinking signals.</h2>
+        </div>
+        <button
+          class="section-toggle"
+          id="type-preview-toggle"
+          type="button"
+          data-section-name="possible outcomes"
+          aria-label="Minimize possible outcomes"
+          aria-expanded="true"
+          aria-controls="type-preview-content"
+        >
+          <span>Minimize</span>
+          <span class="section-toggle__icon" aria-hidden="true"></span>
+        </button>
       </div>
-      <div class="career-opportunities-intro" id="career-opportunities">
-        <h3>Career opportunities</h3>
-        <p>Explore how these organizations describe design roles, teams, skills, and career paths.</p>
-        <p>Organizations are examples for exploration. Links do not guarantee current openings.</p>
+      <div class="collapsible-section__content" id="type-preview-content">
+        <div class="career-opportunities-intro" id="career-opportunities">
+          <h3>Career opportunities</h3>
+          <p>Explore how these organizations describe design roles, teams, skills, and career paths.</p>
+          <p>Organizations are examples for exploration. Links do not guarantee current openings.</p>
+        </div>
+        <div class="type-grid" id="type-grid"></div>
       </div>
-      <div class="type-grid" id="type-grid"></div>
     </section>
 
     <section class="badge-glossary" id="badge-glossary" aria-labelledby="badge-glossary-title">
@@ -160,23 +176,37 @@
         <p class="section-note">
           Badges summarize sub-signals from your answers. They are directional, not credentials.
         </p>
+        <button
+          class="section-toggle"
+          id="badge-glossary-toggle"
+          type="button"
+          data-section-name="badge glossary"
+          aria-label="Minimize badge glossary"
+          aria-expanded="true"
+          aria-controls="badge-glossary-content"
+        >
+          <span>Minimize</span>
+          <span class="section-toggle__icon" aria-hidden="true"></span>
+        </button>
       </div>
 
-      <p class="badge-glossary-note" id="badge-glossary-levels">
-        Badge levels use Bronze, Silver, and Gold thresholds based on each badge score.
-      </p>
+      <div class="collapsible-section__content" id="badge-glossary-content">
+        <p class="badge-glossary-note" id="badge-glossary-levels">
+          Badge levels use Bronze, Silver, and Gold thresholds based on each badge score.
+        </p>
 
-      <div class="badge-glossary-table-wrap">
-        <table class="badge-glossary-table" aria-label="Designer badge glossary">
-          <thead>
-            <tr>
-              <th scope="col">Badge</th>
-              <th scope="col">Description</th>
-              <th scope="col">How it is calculated</th>
-            </tr>
-          </thead>
-          <tbody id="badge-glossary-grid"></tbody>
-        </table>
+        <div class="badge-glossary-table-wrap">
+          <table class="badge-glossary-table" aria-label="Designer badge glossary">
+            <thead>
+              <tr>
+                <th scope="col">Badge</th>
+                <th scope="col">Description</th>
+                <th scope="col">How it is calculated</th>
+              </tr>
+            </thead>
+            <tbody id="badge-glossary-grid"></tbody>
+          </table>
+        </div>
       </div>
     </section>
   </main>

@@ -1620,6 +1620,60 @@ h1 {
   margin-top: 8px;
 }
 
+.section-toggle {
+  min-height: 40px;
+  display: inline-flex;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: center;
+  gap: 9px;
+  padding: 8px 12px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  color: var(--ink);
+  background: #ffffff;
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 800;
+  transition: border-color 180ms ease, background-color 180ms ease, box-shadow 180ms ease;
+}
+
+.section-toggle:hover {
+  border-color: var(--teal);
+  background: #effaf8;
+}
+
+.section-toggle__icon {
+  width: 8px;
+  height: 8px;
+  border-right: 2px solid currentColor;
+  border-bottom: 2px solid currentColor;
+  transform: rotate(225deg) translate(-1px, -1px);
+  transition: transform 180ms ease;
+}
+
+.section-toggle[aria-expanded="false"] .section-toggle__icon {
+  transform: rotate(45deg) translate(-1px, -1px);
+}
+
+.collapsible-section__content[hidden] {
+  display: none;
+}
+
+.type-preview:has(#type-preview-content[hidden]),
+.badge-glossary:has(#badge-glossary-content[hidden]) {
+  padding-bottom: clamp(18px, 3vw, 24px);
+}
+
+.type-preview:has(#type-preview-content[hidden]) .section-heading,
+.badge-glossary:has(#badge-glossary-content[hidden]) .section-heading {
+  margin-bottom: 0;
+}
+
+.badge-glossary__heading .section-toggle {
+  align-self: start;
+}
+
 @media (max-width: 900px) {
   .quiz-shell {
     width: min(720px, calc(100% - 24px));
@@ -1646,6 +1700,10 @@ h1 {
 
   .topbar__links {
     justify-content: flex-start;
+  }
+
+  .section-toggle {
+    width: fit-content;
   }
 
   .badge-glossary-table-wrap {

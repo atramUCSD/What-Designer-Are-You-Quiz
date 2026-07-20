@@ -48,6 +48,10 @@ const dimensionSummary = byId("dimension-summary");
 const nextSteps = byId("next-steps");
 const badgeGlossaryGrid = document.getElementById("badge-glossary-grid");
 const badgeGlossaryLevels = document.getElementById("badge-glossary-levels");
+const typePreviewToggle = byId("type-preview-toggle");
+const typePreviewContent = byId("type-preview-content");
+const badgeGlossaryToggle = byId("badge-glossary-toggle");
+const badgeGlossaryContent = byId("badge-glossary-content");
 
 const STORAGE_KEY = "what-designer-are-you-progress";
 
@@ -115,6 +119,25 @@ function show(element) {
 
 function hide(element) {
   element.hidden = true;
+}
+
+function setCollapsibleSection(toggle, content, collapsed) {
+  const action = collapsed ? "Expand" : "Minimize";
+  const sectionName = toggle.dataset.sectionName ?? "section";
+
+  content.hidden = collapsed;
+  toggle.setAttribute("aria-expanded", String(!collapsed));
+  toggle.setAttribute("aria-label", `${action} ${sectionName}`);
+  toggle.querySelector("span").textContent = action;
+}
+
+function toggleCollapsibleSection(toggle, content) {
+  setCollapsibleSection(toggle, content, !content.hidden);
+}
+
+function minimizeReferenceSections() {
+  setCollapsibleSection(typePreviewToggle, typePreviewContent, true);
+  setCollapsibleSection(badgeGlossaryToggle, badgeGlossaryContent, true);
 }
 
 function focusQuestionViewport() {
@@ -1351,6 +1374,7 @@ startButton.addEventListener("click", () => {
   hide(introPanel);
   hide(resultCard);
   show(quizCard);
+  minimizeReferenceSections();
   renderQuestion();
   persistProgress();
   quizCard.scrollIntoView({ behavior: "smooth", block: "start" });
@@ -1418,6 +1442,14 @@ changeContextButton.addEventListener("click", () => {
   show(introPanel);
   renderAudienceContexts();
   introPanel.scrollIntoView({ behavior: "smooth", block: "start" });
+});
+
+typePreviewToggle.addEventListener("click", () => {
+  toggleCollapsibleSection(typePreviewToggle, typePreviewContent);
+});
+
+badgeGlossaryToggle.addEventListener("click", () => {
+  toggleCollapsibleSection(badgeGlossaryToggle, badgeGlossaryContent);
 });
 
 document.addEventListener("keydown", (event) => {
