@@ -1,10 +1,46 @@
 window.DESIGNER_TYPE_TEST = {
+  questionSetVersion: "2026-07-institution-neutral-v1",
   scale: [
     { value: 1, label: "Strongly disagree" },
     { value: 2, label: "Disagree" },
     { value: 3, label: "Neutral" },
     { value: 4, label: "Agree" },
     { value: 5, label: "Strongly agree" },
+  ],
+  audienceContexts: [
+    {
+      id: "exploring",
+      name: "Exploring design",
+      description: "I am considering design or comparing possible paths.",
+      resultIntroduction: "Use this result to sample the work and decide which direction deserves a closer look.",
+      headings: {
+        projects: "Ways to try this work",
+        skills: "Foundations to explore",
+        roles: "Roles to research",
+      },
+    },
+    {
+      id: "learning",
+      name: "Learning and building",
+      description: "I am developing skills, projects, or a portfolio.",
+      resultIntroduction: "Use this result to focus your portfolio and choose the next skills to strengthen.",
+      headings: {
+        projects: "Portfolio projects to build",
+        skills: "Skills to strengthen",
+        roles: "Entry and adjacent roles",
+      },
+    },
+    {
+      id: "practicing",
+      name: "Practicing designer",
+      description: "I already work in design and want to expand my practice.",
+      resultIntroduction: "Use this result to identify stretch opportunities and adjacent specialties.",
+      headings: {
+        projects: "Stretch projects",
+        skills: "Ways to expand your practice",
+        roles: "Specialist and adjacent paths",
+      },
+    },
   ],
   dimensions: [
     { id: "strategy", name: "Strategic product framing", summary: "Connecting user needs, constraints, scope, and outcomes." },
@@ -23,7 +59,7 @@ window.DESIGNER_TYPE_TEST = {
       summary: "You like connecting user needs, product direction, constraints, and interface quality into one coherent decision path.",
       strengths: ["Problem framing", "Scoping and tradeoffs", "Cross-functional decision making", "End-to-end product thinking", "Cross-product consistency judgment", "Pattern adoption tradeoffs"],
       projectIdeas: [
-        "Redesign a campus workflow and justify what changed and why",
+        "Redesign a real workflow and explain the product and usability tradeoffs",
         "Create an MVP feature concept with user problem, scope, flows, and success signals",
         "Compare two product directions and defend a recommendation",
         "Create a feature concept that balances product goals with reusable patterns",
@@ -45,13 +81,13 @@ window.DESIGNER_TYPE_TEST = {
       summary: "You are most energized by making tasks understandable, flows usable, and navigation clearer for real people.",
       strengths: ["Flow design", "Information architecture", "Usability improvement", "Wireframing and iteration", "Reusable flow patterns", "Consistency across user journeys"],
       projectIdeas: [
-        "Untangle a confusing multi-step student flow",
+        "Untangle a confusing multi-step service or account flow",
         "Redesign a dense dashboard for clarity and task completion",
-        "Run a lightweight usability test on a campus or club tool",
-        "Audit a campus workflow for inconsistent patterns and confusing hierarchy",
+        "Run a lightweight usability test on a tool or service you use regularly",
+        "Audit a complex workflow for inconsistent patterns and confusing hierarchy",
       ],
       skillsToBuild: ["Information architecture", "Wireframing and prototyping", "Usability heuristics", "Pattern libraries", "Accessibility heuristics"],
-      rolesToExplore: ["UX Designer", "Experience Designer", "Product Designer with UX emphasis", "Service Designer intern"],
+      rolesToExplore: ["UX Designer", "Experience Designer", "Product Designer with UX emphasis", "Service Designer"],
       priorityDimensions: ["experienceDesign", "research", "content"],
       recruitingCompanies: [
         { name: "Google", url: "https://careers.google.com/", logo: "assets/company-logos/google.png" },
@@ -89,13 +125,13 @@ window.DESIGNER_TYPE_TEST = {
       summary: "You are motivated by evidence, interviews, synthesis, and helping teams make better decisions under uncertainty.",
       strengths: ["Study planning", "Interviewing and observation", "Insight synthesis", "Evidence-based communication", "Research documentation", "Evidence standards"],
       projectIdeas: [
-        "Run a usability study on a student app and synthesize findings",
-        "Conduct interviews about how students plan coursework or internships",
+        "Run a usability study on a digital product and synthesize the findings",
+        "Conduct interviews about a planning, collaboration, or decision-making workflow",
         "Compare survey and interview results on a design question",
         "Build a lightweight research repository for recurring product decisions",
       ],
       skillsToBuild: ["Moderated interviewing", "Study design and bias reduction", "Affinity mapping and synthesis", "Basic quantitative reasoning", "Research repository structure"],
-      rolesToExplore: ["UX Researcher", "Research Assistant in HCI or CogSci", "Product Research Intern", "Design Researcher"],
+      rolesToExplore: ["UX Researcher", "Research Assistant in HCI or human-computer interaction", "Product Researcher", "Design Researcher"],
       priorityDimensions: ["research", "humanFactors", "strategy"],
       recruitingCompanies: [
         { name: "Adobe", url: "https://careers.adobe.com/", logo: "assets/company-logos/ADBE.png" },
@@ -385,7 +421,7 @@ window.DESIGNER_TYPE_TEST = {
   biasAndValidityNotes: [
     "This is a directional self-reflection tool, not a validated career diagnosis.",
     "Role titles overlap across companies, so adjacent roles should be shown as nearby paths rather than wrong answers.",
-    "Use preference-based wording more than achievement-based wording so students with limited internships are not penalized.",
+    "Use preference-based wording more than achievement-based wording so people with limited formal design experience are not penalized.",
     "Keep reverse-scored items simple and few; avoid dense negations or trick wording.",
   ],
 };

@@ -3,34 +3,45 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>What Type of Designer Are You?</title>
+  <title>What Designer Are You?</title>
   <link rel="stylesheet" href="styles.css">
   <script src="questions.js" defer></script>
   <script src="app.js" defer></script>
 </head>
 <body>
-  <main class="quiz-shell">
+  <a class="skip-link" href="#main-content">Skip to main content</a>
+  <main class="quiz-shell" id="main-content">
     <section class="intro-panel" id="intro-panel">
-      <nav class="topbar" aria-label="Workshop">
-        <a class="brand" href="#intro-panel" aria-label="Designer Type Test home">
+      <nav class="topbar" aria-label="Primary navigation">
+        <a class="brand" href="#intro-panel" aria-label="What Designer Are You home">
           <span class="brand__mark" aria-hidden="true"></span>
-          <span>Designer Type Test</span>
+          <span>What Designer Are You?</span>
         </a>
-        <span class="topbar__meta">UCSD CSSA Workshop</span>
+        <div class="topbar__links">
+          <a href="#type-preview">Outcomes</a>
+          <a href="#badge-glossary">Badges</a>
+          <a href="#career-opportunities">Career opportunities</a>
+        </div>
       </nav>
 
       <div class="hero-grid">
         <div class="hero-copy">
-          <p class="eyebrow">Career reflection tool</p>
+          <p class="eyebrow">Design career reflection</p>
           <h1>What type of designer are you becoming?</h1>
           <p class="hero-copy__lead">
-            Map your current instincts across product, UX, interaction, research, systems, code, human factors, and content design.
+            Map how you approach product decisions, user experience, research, interaction, systems, implementation, human factors, and content.
           </p>
           <p class="helper-copy">
-            Directional, not diagnostic. Use this to decide what to learn, what to build, and which roles to explore next.
+            Use your result to explore a new path, sharpen your current practice, or plan what to learn next.
           </p>
+
+          <fieldset class="audience-context" id="audience-context">
+            <legend>Where are you in your design journey?</legend>
+            <div class="audience-context__options" id="audience-context-options"></div>
+          </fieldset>
+
           <div class="hero-actions">
-            <button class="button button--primary" id="start-button" type="button">Start the test</button>
+            <button class="button button--primary" id="start-button" type="button" disabled>Start the test</button>
             <a class="button button--secondary" href="#type-preview">View possible types</a>
           </div>
         </div>
@@ -53,9 +64,17 @@
         <div>
           <p class="eyebrow">Question <span id="question-number">1</span> of <span id="question-total">1</span></p>
           <h2 id="question-text">Question text</h2>
-          <p class="dimension-pill" id="question-dimension"></p>
         </div>
-        <div class="progress-meter" aria-hidden="true">
+        <div
+          class="progress-meter"
+          id="question-progress"
+          role="progressbar"
+          aria-label="Quiz progress"
+          aria-valuemin="1"
+          aria-valuemax="30"
+          aria-valuenow="1"
+          aria-valuetext="Question 1 of 30"
+        >
           <span id="progress-bar"></span>
         </div>
       </div>
@@ -70,8 +89,10 @@
       </div>
     </section>
 
-    <section class="result-card" id="result-card" hidden aria-live="polite">
+    <section class="result-card" id="result-card" hidden>
+      <p class="sr-only" id="result-announcement" role="status" aria-live="polite"></p>
       <p class="eyebrow" id="result-eyebrow">Primary lean</p>
+      <p class="result-context" id="result-context"></p>
 
       <div class="result-hero">
         <div class="result-copy">
@@ -99,10 +120,11 @@
           <div class="result-block" id="next-steps"></div>
           <p class="helper-copy">This is a reflection tool, not a hiring screen or fixed identity.</p>
           <div class="result-actions">
-            <button class="button button--primary" id="restart-button" type="button">Retake</button>
-            <button class="button button--secondary" id="print-result-button" type="button">Print result</button>
-            <button class="button button--secondary" id="save-pdf-button" type="button">Save PDF</button>
-            <button class="button button--secondary" id="save-image-button" type="button">Save Image</button>
+            <button class="button button--primary" id="restart-button" type="button"><span aria-hidden="true">&#8634;</span> Retake</button>
+            <button class="button button--secondary" id="change-context-button" type="button"><span aria-hidden="true">&#8644;</span> Change journey stage</button>
+            <button class="button button--secondary" id="print-result-button" type="button"><span aria-hidden="true">&#9113;</span> Print result</button>
+            <button class="button button--secondary" id="save-pdf-button" type="button"><span aria-hidden="true">&#8595;</span> Save PDF</button>
+            <button class="button button--secondary" id="save-image-button" type="button"><span aria-hidden="true">&#9635;</span> Save Image</button>
             <a class="button button--secondary" href="#type-preview">Compare types</a>
           </div>
           <p class="save-status" id="save-status" role="status" aria-live="polite"></p>
@@ -121,6 +143,11 @@
         <p class="eyebrow">Possible outcomes</p>
         <h2>Seven design-adjacent directions, plus systems thinking signals.</h2>
       </div>
+      <div class="career-opportunities-intro" id="career-opportunities">
+        <h3>Career opportunities</h3>
+        <p>Explore how these organizations describe design roles, teams, skills, and career paths.</p>
+        <p>Organizations are examples for exploration. Links do not guarantee current openings.</p>
+      </div>
       <div class="type-grid" id="type-grid"></div>
     </section>
 
@@ -128,7 +155,7 @@
       <div class="section-heading badge-glossary__heading">
         <div>
           <p class="eyebrow">Badge glossary</p>
-          <h2 id="badge-glossary-title">Designer badges index.</h2>
+          <h2 id="badge-glossary-title">Designer badge glossary.</h2>
         </div>
         <p class="section-note">
           Badges summarize sub-signals from your answers. They are directional, not credentials.
@@ -139,7 +166,18 @@
         Badge levels use Bronze, Silver, and Gold thresholds based on each badge score.
       </p>
 
-      <div class="badge-glossary-grid" id="badge-glossary-grid" aria-label="Designer badge glossary"></div>
+      <div class="badge-glossary-table-wrap">
+        <table class="badge-glossary-table" aria-label="Designer badge glossary">
+          <thead>
+            <tr>
+              <th scope="col">Badge</th>
+              <th scope="col">Description</th>
+              <th scope="col">How it is calculated</th>
+            </tr>
+          </thead>
+          <tbody id="badge-glossary-grid"></tbody>
+        </table>
+      </div>
     </section>
   </main>
 </body>
