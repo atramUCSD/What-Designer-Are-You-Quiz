@@ -66,6 +66,16 @@ That means Neutral contributes no directional signal. Role scores are normalized
 
 The quiz result renders a static SVG radar chart based on dimension alignment scores. This is intentionally implemented without external charting libraries so it remains GitHub Pages-friendly and print/PDF compatible.
 
+## Visual Assets
+
+The static site self-hosts its visual runtime assets so GitHub Pages does not depend on third-party CDNs:
+
+- Manrope Variable for interface typography
+- Lucide SVG paths for command and external-link icons
+- Motion for reduced-motion-aware question, result, and in-view animation
+
+Runtime files and licenses are committed under `assets/fonts/` and `assets/vendor/`. The application still runs as plain HTML, CSS, and JavaScript without a build step.
+
 ## Designer Badges
 
 Badges are configurable sub-signals derived from role and dimension scores. Badge levels are Bronze, Silver, and Gold. They are directional reflections, not credentials.
