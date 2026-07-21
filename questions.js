@@ -228,7 +228,13 @@ window.DESIGNER_TYPE_TEST = {
     { id: "bronze", name: "Bronze", minScore: 60, color: "#b97845" },
     { id: "silver", name: "Silver", minScore: 72, color: "#9ca3af" },
     { id: "gold", name: "Gold", minScore: 84, color: "#d29b2f" },
+    { id: "rainbow", name: "Rainbow", minScore: 94, color: "#8b5cf6" },
   ],
+  badgeScoring: {
+    minRawScore: 60,
+    standardDeviationScale: 15,
+    minimumSpread: 4,
+  },
   badges: [
     {
       id: "product-sense",

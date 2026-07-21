@@ -616,6 +616,24 @@ h2 {
   background: var(--badge-color);
 }
 
+.designer-badge--rainbow {
+  position: relative;
+  overflow: hidden;
+  border-color: #8b5cf6;
+}
+
+.designer-badge--rainbow::before {
+  content: "";
+  position: absolute;
+  inset: 0 0 auto;
+  height: 4px;
+  background: linear-gradient(90deg, #e5484d, #d29b2f, #2f9e6f, #2f7ed8, #8b5cf6, #cc4f8b);
+}
+
+.designer-badge--rainbow .designer-badge__meter span {
+  background: linear-gradient(90deg, #e5484d, #d29b2f, #2f9e6f, #2f7ed8, #8b5cf6, #cc4f8b);
+}
+
 .result-company-section {
   margin-top: 22px;
   padding-top: 18px;
@@ -1823,18 +1841,6 @@ h1 {
   background: #f4f7f8;
   font-size: 12px;
   line-height: 1.25;
-}
-
-.badge-signal-details summary {
-  width: fit-content;
-  color: #0b625c;
-  cursor: pointer;
-  font-size: 12px;
-  font-weight: 800;
-}
-
-.badge-signal-details p {
-  margin-top: 8px;
 }
 
 .section-toggle {

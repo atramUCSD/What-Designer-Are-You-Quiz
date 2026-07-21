@@ -328,10 +328,11 @@ const DEFAULT_BADGE_LEVELS = [
   { id: "bronze", name: "Bronze", minScore: 60, color: "#b97845" },
   { id: "silver", name: "Silver", minScore: 72, color: "#9ca3af" },
   { id: "gold", name: "Gold", minScore: 84, color: "#d29b2f" },
+  { id: "rainbow", name: "Rainbow", minScore: 94, color: "#8b5cf6" },
 ];
 
 const MAX_VISIBLE_BADGES = 6;
-const LEVEL_RANK = { gold: 3, silver: 2, bronze: 1 };
+const LEVEL_RANK = { rainbow: 4, gold: 3, silver: 2, bronze: 1 };
 
 function polarPoint(centerX, centerY, radius, angleDegrees) {
   const radians = ((angleDegrees - 90) * Math.PI) / 180;
@@ -889,17 +890,7 @@ function getComputedBadgeSignal(signal, dimensions, isRoundedProfile) {
     return null;
   }
 
-  if (isRoundedProfile) {
-    return 88;
-  }
-
-  const topDimensions = dimensions.slice(0, 4);
-
-  if (!topDimensions.length) {
-    return null;
-  }
-
-  return Math.round(topDimensions.reduce((sum, dimension) => sum + dimension.alignment, 0) / topDimensions.length);
+  return isRoundedProfile ? 88 : null;
 }
 
 function getQuestionBadgeSignal(signal, answers) {
@@ -927,8 +918,13 @@ function calculateBadges({ ranked, dimensions, answers = [], isRoundedProfile })
   const roleById = new Map(ranked.map((type) => [type.id, type]));
   const dimensionById = new Map(dimensions.map((dimension) => [dimension.id, dimension]));
   const levels = getBadgeLevels();
-
-  return getBadgeDefinitions()
+  const scoring = {
+    minRawScore: 60,
+    standardDeviationScale: 15,
+    minimumSpread: 4,
+    ...(config.badgeScoring ?? {}),
+  };
+  const candidates = getBadgeDefinitions()
     .map((badge, order) => {
       let total = 0;
       let totalWeight = 0;
@@ -954,16 +950,44 @@ function calculateBadges({ ranked, dimensions, answers = [], isRoundedProfile })
         totalWeight += signal.weight;
       });
 
-      const score = totalWeight ? Math.round(total / totalWeight) : 0;
-      const level = getBadgeLevel(score, levels);
-
       return {
         ...badge,
         order,
+        rawScore: totalWeight ? Math.round(total / totalWeight) : 0,
+        usesComputedSignal: (badge.signals ?? []).some((signal) => signal.source === "computed"),
+        sourceSummary: `${(badge.signals ?? []).length} configured signals`,
+      };
+    });
+
+  // Tier relative lift against this person's badge profile so broad agreement cannot unlock every badge.
+  const comparableScores = candidates
+    .filter((badge) => !badge.usesComputedSignal)
+    .map((badge) => badge.rawScore);
+  const mean = comparableScores.length
+    ? comparableScores.reduce((sum, score) => sum + score, 0) / comparableScores.length
+    : 0;
+  const variance = comparableScores.length
+    ? comparableScores.reduce((sum, score) => sum + (score - mean) ** 2, 0) / comparableScores.length
+    : 0;
+  const standardDeviation = Math.sqrt(variance);
+
+  return candidates
+    .map((badge) => {
+      const score = badge.usesComputedSignal
+        ? badge.rawScore
+        : standardDeviation >= scoring.minimumSpread
+          ? Math.round(clamp(50 + ((badge.rawScore - mean) / standardDeviation) * scoring.standardDeviationScale, 0, 100))
+          : 50;
+      const hasPositiveEvidence = badge.usesComputedSignal
+        ? isRoundedProfile
+        : badge.rawScore >= scoring.minRawScore && score >= 60;
+      const level = hasPositiveEvidence ? getBadgeLevel(score, levels) : null;
+
+      return {
+        ...badge,
         score,
         level,
         color: level?.color ?? "#d8d1c5",
-        sourceSummary: `${(badge.signals ?? []).length} configured signals`,
       };
     })
     .filter((badge) => badge.level)
@@ -992,7 +1016,7 @@ function renderBadgePanel(badges) {
                 <div
                   class="designer-badge__meter"
                   role="progressbar"
-                  aria-label="${escapeHtml(badge.name)} score"
+                  aria-label="${escapeHtml(badge.name)} relative leaning"
                   aria-valuemin="0"
                   aria-valuemax="100"
                   aria-valuenow="${badge.score}"
@@ -1014,48 +1038,29 @@ function renderBadgePanel(badges) {
     <div class="badge-panel__header">
       <p class="eyebrow">Designer badges</p>
       <h3>Your strongest sub-signals</h3>
-      <p>Badges summarize skill signals from your answers. They are directional, not credentials.</p>
+      <p>Badges appear only when a skill signal rises meaningfully above your overall profile. They are directional, not credentials.</p>
     </div>
     <div class="badge-grid">${badgeMarkup}</div>
   `;
 }
 
-function formatWeightPercent(weight) {
-  if (!Number.isFinite(weight)) {
-    return "";
-  }
-
-  return `${Math.round(weight * 100)}%`;
-}
-
-function formatBadgeSignal(signal = {}, includeWeight = true) {
-  const percent = formatWeightPercent(signal.weight);
-  const suffix = includeWeight && percent ? ` (${percent})` : "";
-
+function formatBadgeSignal(signal = {}) {
   switch (signal.source) {
     case "dimension":
-      return `${getDimensionLabel(signal.id)}${suffix}`;
+      return getDimensionLabel(signal.id);
     case "role":
-      return `${getRoleLabel(signal.id)} alignment${suffix}`;
+      return `${getRoleLabel(signal.id)} alignment`;
     case "question":
-      return `${signal.direction === "disagree" ? "Disagree with" : "Agree with"} ${getQuestionLabel(signal.id)}${suffix}`;
+      return `${signal.direction === "disagree" ? "Disagree with" : "Agree with"} ${getQuestionLabel(signal.id)}`;
     case "computed":
       if (signal.id === "roundedProfile") {
-        return `Rounded profile / balanced high scores${suffix}`;
+        return "Rounded profile / balanced high scores";
       }
 
-      return `Computed signal: ${signal.id ?? "unknown"}${suffix}`;
+      return `Computed signal: ${signal.id ?? "unknown"}`;
     default:
-      return `${signal.source ?? "Signal"}: ${signal.id ?? "unknown"}${suffix}`;
+      return `${signal.source ?? "Signal"}: ${signal.id ?? "unknown"}`;
   }
-}
-
-function formatBadgeFormula(badge = {}) {
-  if (!badge.signals?.length) {
-    return "Configured manually.";
-  }
-
-  return badge.signals.map(formatBadgeSignal).join(" + ");
 }
 
 function formatBadgeLevels() {
@@ -1065,20 +1070,13 @@ function formatBadgeLevels() {
     return "Badge levels are calculated from each badge score.";
   }
 
-  return levels
-    .map((level) => {
-      const name = level.name ?? level.id ?? "Level";
-      const threshold = Number.isFinite(level.minScore) ? `${level.minScore}+` : "threshold";
-
-      return `${name} ${threshold}`;
-    })
-    .join(" / ");
+  return levels.map((level) => level.name ?? level.id ?? "Level").join(" / ");
 }
 
 function renderBadgeGlossaryRow(badge = {}) {
   const signals = badge.signals?.length
     ? badge.signals
-        .map((signal) => `<span class="badge-signal-chip">${escapeHtml(formatBadgeSignal(signal, false))}</span>`)
+        .map((signal) => `<span class="badge-signal-chip">${escapeHtml(formatBadgeSignal(signal))}</span>`)
         .join("")
     : `<span class="badge-signal-chip">Configured manually</span>`;
 
@@ -1098,10 +1096,6 @@ function renderBadgeGlossaryRow(badge = {}) {
 
       <td class="badge-glossary-cell badge-glossary-cell--signals" data-label="How it is calculated">
         <div class="badge-signal-list">${signals}</div>
-        <details class="badge-formula-details">
-          <summary>View weighting</summary>
-          <p>${escapeHtml(formatBadgeFormula(badge))}</p>
-        </details>
       </td>
     </tr>
   `;
@@ -1115,7 +1109,7 @@ function renderBadgeGlossary() {
   const badges = getBadgeDefinitions();
 
   if (badgeGlossaryLevels) {
-    badgeGlossaryLevels.textContent = `${formatBadgeLevels()} / Directional signals, not credentials.`;
+    badgeGlossaryLevels.textContent = `${formatBadgeLevels()} tiers reflect how strongly a signal stands out from your overall profile. Directional signals, not credentials.`;
   }
 
   if (!badges.length) {
