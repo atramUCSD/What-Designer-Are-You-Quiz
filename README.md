@@ -38,8 +38,7 @@ This checks the standalone JavaScript files for syntax errors.
 - Added reverse-scored item support.
 - Added primary, blended, and strong secondary result handling.
 - Added richer result copy: strengths, project ideas, skills to build, roles to explore, and top dimensions.
-- Collects a required, unscored journey stage so guidance headings can match whether someone is exploring, learning, or practicing.
-- Saves in-progress answers and journey stage locally, invalidating saved progress when the configured question-set version changes.
+- Saves in-progress answers locally and invalidates saved progress when the configured question-set version changes.
 
 ## Scoring model
 

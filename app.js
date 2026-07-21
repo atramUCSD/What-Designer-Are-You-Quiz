@@ -25,18 +25,15 @@ const questionText = byId("question-text");
 const questionProgress = byId("question-progress");
 const progressBar = byId("progress-bar");
 const answerScale = byId("answer-scale");
-const audienceContextOptions = byId("audience-context-options");
 const startButton = byId("start-button");
 const backButton = byId("back-button");
 const nextButton = byId("next-button");
 const restartButton = byId("restart-button");
-const changeContextButton = byId("change-context-button");
 const savePdfButton = byId("save-pdf-button");
 const saveImageButton = byId("save-image-button");
 const printResultButton = byId("print-result-button");
 const saveStatus = byId("save-status");
 const resultEyebrow = byId("result-eyebrow");
-const resultContext = byId("result-context");
 const resultAnnouncement = byId("result-announcement");
 const resultTitle = byId("result-title");
 const resultSummary = byId("result-summary");
@@ -84,15 +81,11 @@ function saveTheme(theme) {
   }
 }
 
-function isAudienceContextId(value) {
-  return (config.audienceContexts ?? []).some((context) => context.id === value);
-}
-
 function loadSavedProgress() {
   try {
     const saved = JSON.parse(window.localStorage.getItem(STORAGE_KEY));
 
-    if (saved?.questionSetVersion !== config.questionSetVersion || !isAudienceContextId(saved.audienceContext)) {
+    if (saved?.questionSetVersion !== config.questionSetVersion) {
       return null;
     }
 
@@ -101,7 +94,6 @@ function loadSavedProgress() {
     }
 
     return {
-      audienceContext: saved.audienceContext,
       index: clamp(Number.isInteger(saved.index) ? saved.index : 0, 0, config.questions.length - 1),
       answers: saved.answers.map((answer) => (Number.isInteger(answer) && answer >= 1 && answer <= 5 ? answer : null)),
     };
@@ -114,7 +106,6 @@ const savedProgress = loadSavedProgress();
 const state = {
   index: savedProgress?.index ?? 0,
   answers: savedProgress?.answers ?? Array(config.questions.length).fill(null),
-  audienceContext: savedProgress?.audienceContext ?? null,
   resultFileBase: "designer-type-result",
 };
 
@@ -124,21 +115,12 @@ function persistProgress() {
       STORAGE_KEY,
       JSON.stringify({
         questionSetVersion: config.questionSetVersion,
-        audienceContext: state.audienceContext,
         index: state.index,
         answers: state.answers,
       }),
     );
   } catch {
     // Storage may be unavailable in private browsing; the quiz still works in memory.
-  }
-}
-
-function clearSavedProgress() {
-  try {
-    window.localStorage.removeItem(STORAGE_KEY);
-  } catch {
-    // No action is needed when storage is unavailable.
   }
 }
 
@@ -301,33 +283,6 @@ function getQuestionLabel(questionId) {
   }
 
   return `${question.id}: ${question.prompt}`;
-}
-
-function getAudienceContext() {
-  return (config.audienceContexts ?? []).find((context) => context.id === state.audienceContext) ?? null;
-}
-
-function renderAudienceContexts() {
-  audienceContextOptions.innerHTML = (config.audienceContexts ?? [])
-    .map(
-      (context) => `
-        <label class="audience-context__option">
-          <input
-            type="radio"
-            name="audience-context"
-            value="${escapeHtml(context.id)}"
-            ${state.audienceContext === context.id ? "checked" : ""}
-          >
-          <span>
-            <strong>${escapeHtml(context.name)}</strong>
-            <small>${escapeHtml(context.description)}</small>
-          </span>
-        </label>
-      `,
-    )
-    .join("");
-
-  startButton.disabled = !getAudienceContext();
 }
 
 function renderExternalLinkIcon() {
@@ -1333,16 +1288,6 @@ async function saveResultImage() {
 }
 
 function renderResult() {
-  const audienceContext = getAudienceContext();
-
-  if (!audienceContext) {
-    hide(quizCard);
-    hide(resultCard);
-    show(introPanel);
-    renderAudienceContexts();
-    return;
-  }
-
   const {
     ranked,
     dimensions,
@@ -1358,8 +1303,6 @@ function renderResult() {
   const systemsDimension = dimensions.find((dimension) => dimension.id === "systems");
   const hasSystemsSignal = systemsDimension && (systemsDimension.alignment >= 70 || topDimensionIds.includes("systems"));
   const visualCard = resultRadar.closest(".result-visual-card");
-
-  resultContext.textContent = `Guidance for ${audienceContext.name.toLowerCase()}. ${audienceContext.resultIntroduction}`;
 
   visualCard?.style.setProperty("--result-color", topType.color);
   visualCard?.style.setProperty("--result-fill", hexToRgba(topType.color, 0.16));
@@ -1424,7 +1367,6 @@ function renderResult() {
   `;
 
   const companyReferenceTypes = roundedProfile.isRounded ? ranked.slice(0, 4) : [topType, secondType].filter(Boolean);
-  const guidanceHeadings = audienceContext.headings ?? {};
   const nextStepSections = roundedProfile.isRounded
     ? [
         renderList("How to use this result", [
@@ -1432,18 +1374,18 @@ function renderResult() {
           "Build one portfolio project that shows breadth: research, interaction, content, systems, and implementation judgment.",
           "Use the ranked scores to choose which job descriptions and portfolios to study first.",
         ]),
-        renderList(guidanceHeadings.skills ?? `Strongest lane: ${topType.name}`, topType.skillsToBuild),
+        renderList(`Strongest lane: ${topType.name}`, topType.skillsToBuild),
         renderList(
-          guidanceHeadings.roles ?? "Roles to explore",
+          "Roles to explore",
           Array.from(new Set(ranked.slice(0, 3).flatMap((type) => type.rolesToExplore ?? []))).slice(0, 6),
         ),
         renderResultCompanySection(companyReferenceTypes),
       ]
     : [
         renderList("Strengths", topType.strengths),
-        renderList(guidanceHeadings.projects ?? "Project ideas", topType.projectIdeas),
-        renderList(guidanceHeadings.skills ?? "Skills to build next", topType.skillsToBuild),
-        renderList(guidanceHeadings.roles ?? "Roles to explore", topType.rolesToExplore),
+        renderList("Project ideas", topType.projectIdeas),
+        renderList("Skills to build next", topType.skillsToBuild),
+        renderList("Roles to explore", topType.rolesToExplore),
         renderResultCompanySection(companyReferenceTypes),
       ];
 
@@ -1474,10 +1416,6 @@ function renderResult() {
 }
 
 startButton.addEventListener("click", () => {
-  if (!getAudienceContext()) {
-    return;
-  }
-
   hide(introPanel);
   hide(resultCard);
   show(quizCard);
@@ -1485,16 +1423,6 @@ startButton.addEventListener("click", () => {
   renderQuestion();
   persistProgress();
   quizCard.scrollIntoView({ behavior: "smooth", block: "start" });
-});
-
-audienceContextOptions.addEventListener("change", (event) => {
-  if (!(event.target instanceof HTMLInputElement) || !isAudienceContextId(event.target.value)) {
-    return;
-  }
-
-  state.audienceContext = event.target.value;
-  startButton.disabled = false;
-  persistProgress();
 });
 
 answerScale.addEventListener("change", (event) => {
@@ -1533,21 +1461,7 @@ restartButton.addEventListener("click", () => {
   setSaveStatus("");
   hide(resultCard);
   show(introPanel);
-  renderAudienceContexts();
   persistProgress();
-  introPanel.scrollIntoView({ behavior: "smooth", block: "start" });
-});
-
-changeContextButton.addEventListener("click", () => {
-  state.index = 0;
-  state.answers = Array(config.questions.length).fill(null);
-  state.audienceContext = null;
-  clearSavedProgress();
-  setSaveStatus("");
-  hide(resultCard);
-  hide(quizCard);
-  show(introPanel);
-  renderAudienceContexts();
   introPanel.scrollIntoView({ behavior: "smooth", block: "start" });
 });
 
@@ -1605,7 +1519,6 @@ printResultButton.addEventListener("click", () => window.print());
 window.addEventListener("afterprint", () => setButtonBusy(savePdfButton, false));
 
 applyTheme(document.documentElement.dataset.theme);
-renderAudienceContexts();
 renderTypePreview();
 renderBadgeGlossary();
 initializeInViewMotion();
