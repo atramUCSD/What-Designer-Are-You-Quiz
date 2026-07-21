@@ -52,8 +52,37 @@ const typePreviewToggle = byId("type-preview-toggle");
 const typePreviewContent = byId("type-preview-content");
 const badgeGlossaryToggle = byId("badge-glossary-toggle");
 const badgeGlossaryContent = byId("badge-glossary-content");
+const themeToggle = byId("theme-toggle");
 
 const STORAGE_KEY = "what-designer-are-you-progress";
+const THEME_STORAGE_KEY = "what-designer-are-you-theme";
+
+function getSavedTheme() {
+  try {
+    const savedTheme = window.localStorage.getItem(THEME_STORAGE_KEY);
+    return savedTheme === "dark" || savedTheme === "light" ? savedTheme : null;
+  } catch {
+    return null;
+  }
+}
+
+function applyTheme(theme) {
+  const nextTheme = theme === "dark" ? "dark" : "light";
+  const nextLabel = nextTheme === "dark" ? "Use light theme" : "Use dark theme";
+
+  document.documentElement.dataset.theme = nextTheme;
+  document.documentElement.style.colorScheme = nextTheme;
+  themeToggle.setAttribute("aria-label", nextLabel);
+  themeToggle.title = nextLabel;
+}
+
+function saveTheme(theme) {
+  try {
+    window.localStorage.setItem(THEME_STORAGE_KEY, theme);
+  } catch {
+    // The selected theme still applies for the current page when storage is unavailable.
+  }
+}
 
 function isAudienceContextId(value) {
   return (config.audienceContexts ?? []).some((context) => context.id === value);
@@ -1005,7 +1034,14 @@ function renderBadgePanel(badges) {
                   <span>${escapeHtml(badge.level.name)}</span>
                 </div>
                 <p>${escapeHtml(badge.description)}</p>
-                <div class="designer-badge__meter" aria-label="${escapeHtml(badge.name)} score ${badge.score} out of 100">
+                <div
+                  class="designer-badge__meter"
+                  role="progressbar"
+                  aria-label="${escapeHtml(badge.name)} score"
+                  aria-valuemin="0"
+                  aria-valuemax="100"
+                  aria-valuenow="${badge.score}"
+                >
                   <span style="--badge-score: ${badge.score}%"></span>
                 </div>
               </div>
@@ -1523,6 +1559,19 @@ badgeGlossaryToggle.addEventListener("click", () => {
   toggleCollapsibleSection(badgeGlossaryToggle, badgeGlossaryContent);
 });
 
+themeToggle.addEventListener("click", () => {
+  const nextTheme = document.documentElement.dataset.theme === "dark" ? "light" : "dark";
+  applyTheme(nextTheme);
+  saveTheme(nextTheme);
+});
+
+const systemThemePreference = window.matchMedia("(prefers-color-scheme: dark)");
+systemThemePreference.addEventListener("change", (event) => {
+  if (!getSavedTheme()) {
+    applyTheme(event.matches ? "dark" : "light");
+  }
+});
+
 document.addEventListener("keydown", (event) => {
   if (quizCard.hidden || event.altKey || event.ctrlKey || event.metaKey) {
     return;
@@ -1555,6 +1604,7 @@ saveImageButton.addEventListener("click", saveResultImage);
 printResultButton.addEventListener("click", () => window.print());
 window.addEventListener("afterprint", () => setButtonBusy(savePdfButton, false));
 
+applyTheme(document.documentElement.dataset.theme);
 renderAudienceContexts();
 renderTypePreview();
 renderBadgeGlossary();
