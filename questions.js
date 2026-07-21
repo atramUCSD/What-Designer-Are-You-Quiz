@@ -7,41 +7,6 @@ window.DESIGNER_TYPE_TEST = {
     { value: 4, label: "Agree" },
     { value: 5, label: "Strongly agree" },
   ],
-  audienceContexts: [
-    {
-      id: "exploring",
-      name: "Exploring design",
-      description: "I am considering design or comparing possible paths.",
-      resultIntroduction: "Use this result to sample the work and decide which direction deserves a closer look.",
-      headings: {
-        projects: "Ways to try this work",
-        skills: "Foundations to explore",
-        roles: "Roles to research",
-      },
-    },
-    {
-      id: "learning",
-      name: "Learning and building",
-      description: "I am developing skills, projects, or a portfolio.",
-      resultIntroduction: "Use this result to focus your portfolio and choose the next skills to strengthen.",
-      headings: {
-        projects: "Portfolio projects to build",
-        skills: "Skills to strengthen",
-        roles: "Entry and adjacent roles",
-      },
-    },
-    {
-      id: "practicing",
-      name: "Practicing designer",
-      description: "I already work in design and want to expand my practice.",
-      resultIntroduction: "Use this result to identify stretch opportunities and adjacent specialties.",
-      headings: {
-        projects: "Stretch projects",
-        skills: "Ways to expand your practice",
-        roles: "Specialist and adjacent paths",
-      },
-    },
-  ],
   dimensions: [
     { id: "strategy", name: "Strategic product framing", summary: "Connecting user needs, constraints, scope, and outcomes." },
     { id: "experienceDesign", name: "Experience design and interaction craft", summary: "Structuring flows, information, states, feedback, and behavior." },
