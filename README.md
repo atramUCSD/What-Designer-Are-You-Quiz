@@ -76,6 +76,10 @@ The static site self-hosts its visual runtime assets so GitHub Pages does not de
 
 Runtime files and licenses are committed under `assets/fonts/` and `assets/vendor/`. The application still runs as plain HTML, CSS, and JavaScript without a build step.
 
+## Themes and Contrast
+
+The interface defaults to the operating-system color preference and provides a persistent light/dark theme toggle. Both themes use WCAG 2.0 AA text contrast and at least 3:1 contrast for essential control and card boundaries. Print and export output remains light for predictable document rendering.
+
 ## Designer Badges
 
 Badges are configurable sub-signals derived from role and dimension scores. Badge levels are Bronze, Silver, and Gold. They are directional reflections, not credentials.
