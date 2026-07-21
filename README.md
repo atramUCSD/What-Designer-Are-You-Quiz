@@ -81,11 +81,11 @@ The interface defaults to the operating-system color preference and provides a p
 
 ## Designer Badges
 
-Badges are configurable sub-signals derived from role and dimension scores. Badge levels are Bronze, Silver, and Gold. They are directional reflections, not credentials.
+Badges are configurable sub-signals derived from role, dimension, question, and computed scores. Bronze, Silver, Gold, and Rainbow tiers reflect how far a badge rises above the person's overall badge-signal baseline, with an absolute evidence floor required for Bronze. Flat profiles do not unlock badges merely for broad capacity. They are directional reflections, not credentials.
 
 ## Badge Glossary
 
-The home page includes a badge glossary below the possible outcomes section. It renders from the configured badge definitions, showing the badge name, description, and the role/dimension/computed signals used to calculate it.
+The home page includes a badge glossary below the possible outcomes section. It renders from the configured badge definitions, showing the badge name, description, and contributing signals without exposing internal weights.
 
 ## Career Opportunities
 
