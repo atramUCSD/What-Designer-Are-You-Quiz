@@ -63,7 +63,6 @@ const TYPE_SANDBOX_PROFILES = [
   { id: "research", shortName: "Research", fallbackName: "UX Researcher", x: 18, y: 21, fallbackColor: "#3b79b7" },
   { id: "product", shortName: "Product", fallbackName: "Product Designer", x: 79, y: 21, fallbackColor: "#d29b2f" },
   { id: "content", shortName: "Content", fallbackName: "UX Writer / Content Designer", x: 65, y: 36, fallbackColor: "#cc4f8b" },
-  { id: "systems", shortName: "Systems", fallbackName: "Systems Thinking Signal", x: 50, y: 49, fallbackColor: "#7c5cbf", isSignal: true },
   { id: "ux", shortName: "UX", fallbackName: "UX Designer", x: 31, y: 65, fallbackColor: "#0f766e" },
   { id: "humanFactors", shortName: "Human Factors", fallbackName: "Human Factors Engineer", x: 17, y: 81, fallbackColor: "#c85d3a" },
   { id: "interaction", shortName: "Interaction", fallbackName: "Interaction Designer", x: 62, y: 68, fallbackColor: "#1f7ae0" },

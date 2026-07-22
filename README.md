@@ -75,7 +75,7 @@ The static site self-hosts its visual runtime assets so GitHub Pages does not de
 
 Runtime files and licenses are committed under `assets/fonts/` and `assets/vendor/`. The application still runs as plain HTML, CSS, and JavaScript without a build step.
 
-The hero includes an interactive designer-space map organized into Research & Discovery, Product Strategy, Testing & Validation, and Prototyping & Code zones. Its idle keyframe path moves through the seven configured outcomes and the cross-cutting Systems signal; pointer, touch, and keyboard focus resolve the nearest direction at the current coordinates. Idle motion is disabled when reduced motion is requested.
+The hero includes an interactive designer-space map organized into Research & Discovery, Product Strategy, Testing & Validation, and Prototyping & Code zones. Its nodes and idle keyframe path use the seven configured quiz outcomes; pointer, touch, and keyboard focus resolve the nearest result type at the current coordinates. Idle motion is disabled when reduced motion is requested.
 
 ## Themes and Contrast
 
