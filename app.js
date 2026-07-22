@@ -60,14 +60,14 @@ const STORAGE_KEY = "what-designer-are-you-progress";
 const THEME_STORAGE_KEY = "what-designer-are-you-theme";
 const TYPE_SANDBOX_DURATION = 18000;
 const TYPE_SANDBOX_PROFILES = [
-  { id: "product", shortName: "Product", fallbackName: "Product Designer", x: 50, y: 16, fallbackColor: "#d29b2f" },
-  { id: "content", shortName: "Content", fallbackName: "UX Writer / Content Designer", x: 82, y: 27, fallbackColor: "#cc4f8b" },
-  { id: "interaction", shortName: "Interaction", fallbackName: "Interaction Designer", x: 78, y: 54, fallbackColor: "#1f7ae0" },
-  { id: "technology", shortName: "Technology", fallbackName: "Design Technologist / UI Engineer", x: 72, y: 82, fallbackColor: "#55a66f" },
-  { id: "humanFactors", shortName: "Human Factors", fallbackName: "Human Factors Engineer", x: 25, y: 80, fallbackColor: "#c85d3a" },
-  { id: "ux", shortName: "UX", fallbackName: "UX Designer", x: 21, y: 54, fallbackColor: "#0f766e" },
-  { id: "research", shortName: "Research", fallbackName: "UX Researcher", x: 17, y: 28, fallbackColor: "#3b79b7" },
+  { id: "research", shortName: "Research", fallbackName: "UX Researcher", x: 18, y: 21, fallbackColor: "#3b79b7" },
+  { id: "product", shortName: "Product", fallbackName: "Product Designer", x: 79, y: 21, fallbackColor: "#d29b2f" },
+  { id: "content", shortName: "Content", fallbackName: "UX Writer / Content Designer", x: 65, y: 36, fallbackColor: "#cc4f8b" },
   { id: "systems", shortName: "Systems", fallbackName: "Systems Thinking Signal", x: 50, y: 49, fallbackColor: "#7c5cbf", isSignal: true },
+  { id: "ux", shortName: "UX", fallbackName: "UX Designer", x: 31, y: 65, fallbackColor: "#0f766e" },
+  { id: "humanFactors", shortName: "Human Factors", fallbackName: "Human Factors Engineer", x: 17, y: 81, fallbackColor: "#c85d3a" },
+  { id: "interaction", shortName: "Interaction", fallbackName: "Interaction Designer", x: 62, y: 68, fallbackColor: "#1f7ae0" },
+  { id: "technology", shortName: "Technology", fallbackName: "Design Technologist / UI Engineer", x: 82, y: 82, fallbackColor: "#55a66f" },
 ];
 
 let typeSandboxAnimationFrame = null;
