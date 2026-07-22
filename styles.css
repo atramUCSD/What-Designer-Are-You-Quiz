@@ -352,35 +352,21 @@ h2 {
   height: 1px;
 }
 
-.type-sandbox__axis {
+.type-sandbox__quadrant {
   position: absolute;
   z-index: 1;
   color: var(--muted);
   font-size: 9px;
   font-weight: 800;
-  letter-spacing: 0.12em;
+  letter-spacing: 0.1em;
   text-transform: uppercase;
   pointer-events: none;
 }
 
-.type-sandbox__axis--top,
-.type-sandbox__axis--bottom {
-  left: 50%;
-  transform: translateX(-50%);
-}
-
-.type-sandbox__axis--top { top: 8px; }
-.type-sandbox__axis--bottom { bottom: 8px; }
-
-.type-sandbox__axis--left,
-.type-sandbox__axis--right {
-  top: 50%;
-  writing-mode: vertical-rl;
-  transform: translateY(-50%);
-}
-
-.type-sandbox__axis--left { left: 8px; transform: translateY(-50%) rotate(180deg); }
-.type-sandbox__axis--right { right: 8px; }
+.type-sandbox__quadrant--research { top: 9px; left: 11px; }
+.type-sandbox__quadrant--strategy { top: 9px; right: 11px; }
+.type-sandbox__quadrant--testing { bottom: 9px; left: 11px; }
+.type-sandbox__quadrant--build { right: 11px; bottom: 9px; }
 
 .type-sandbox__nodes {
   position: absolute;
