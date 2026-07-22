@@ -66,7 +66,7 @@ const TYPE_SANDBOX_PROFILES = [
   { id: "ux", shortName: "UX", fallbackName: "UX Designer", x: 31, y: 65, fallbackColor: "#0f766e" },
   { id: "humanFactors", shortName: "Human Factors", fallbackName: "Human Factors Engineer", x: 17, y: 81, fallbackColor: "#c85d3a" },
   { id: "interaction", shortName: "Interaction", fallbackName: "Interaction Designer", x: 62, y: 68, fallbackColor: "#1f7ae0" },
-  { id: "technology", shortName: "Technology", fallbackName: "Design Technologist / UI Engineer", x: 82, y: 82, fallbackColor: "#55a66f" },
+  { id: "technology", shortName: "Technology", fallbackName: "Design Engineer / UI Engineer", x: 82, y: 82, fallbackColor: "#55a66f" },
 ];
 
 let typeSandboxAnimationFrame = null;
@@ -442,16 +442,15 @@ function renderExternalLinkIcon() {
   `;
 }
 
-function normalizeAlignment(rawScore, maxAbsScore, curveExponent = 1) {
+function normalizeAlignment(rawScore, maxAbsScore) {
   if (!maxAbsScore) {
     return 50;
   }
 
   const ratio = clamp(rawScore / maxAbsScore, -1, 1);
-  const curvedRatio = Math.sign(ratio) * Math.abs(ratio) ** curveExponent;
 
   // 50 means no net signal; below 50 means the answers counter this role or dimension.
-  return Math.round(clamp(50 + 50 * curvedRatio, 0, 100));
+  return Math.round(clamp(50 + 50 * ratio, 0, 100));
 }
 
 function getResponseVariance(answers) {
@@ -768,20 +767,47 @@ function renderTypePreview() {
 }
 
 function renderScale() {
+  const question = config.questions[state.index];
+  const questionKind = getQuestionKind(question);
   const selected = state.answers[state.index];
+  const scale = config.scales?.[questionKind] ?? config.scale ?? [];
+  const legend = questionKind === "tradeoff" ? "Which option would you prioritize?" : "How characteristic is this of you?";
+  const poles =
+    questionKind === "tradeoff"
+      ? `
+        <div class="tradeoff-poles">
+          <div class="tradeoff-pole tradeoff-pole--left">
+            <span aria-hidden="true">A</span>
+            <p>${escapeHtml(question.leftLabel ?? "Option A")}</p>
+          </div>
+          <div class="tradeoff-divider" aria-hidden="true"><span>or</span></div>
+          <div class="tradeoff-pole tradeoff-pole--right">
+            <span aria-hidden="true">B</span>
+            <p>${escapeHtml(question.rightLabel ?? "Option B")}</p>
+          </div>
+        </div>
+      `
+      : "";
+
+  answerScale.classList.toggle("scale--tradeoff", questionKind === "tradeoff");
+  answerScale.classList.toggle("scale--anchor", questionKind === "anchor");
 
   answerScale.innerHTML = `
-    <legend>Choose the answer that feels most true.</legend>
-    ${config.scale
-      .map(
-        (item) => `
-          <label>
-            <input type="radio" name="answer" value="${item.value}" ${selected === item.value ? "checked" : ""}>
-            ${escapeHtml(item.label)}
-          </label>
-        `,
-      )
-      .join("")}
+    <legend>${legend}</legend>
+    ${poles}
+    <div class="scale-options">
+      ${scale
+        .map(
+          (item) => `
+            <label>
+              <input type="radio" name="answer" value="${item.value}" ${selected === item.value ? "checked" : ""}>
+              <span class="scale-option__key" aria-hidden="true">${item.value}</span>
+              <span>${escapeHtml(item.label)}</span>
+            </label>
+          `,
+        )
+        .join("")}
+    </div>
   `;
 }
 
@@ -847,40 +873,47 @@ function getQuestionKind(question) {
 
 function getScoringSettings() {
   return {
-    moderateAnswerStrength: clamp(config.scoringModel?.moderateAnswerStrength ?? 0.45, 0.25, 0.75),
-    roleWeightExponent: clamp(config.scoringModel?.roleWeightExponent ?? 1.5, 1, 2),
-    tradeoffMultiplier: clamp(config.scoringModel?.tradeoffMultiplier ?? 1.15, 1, 1.5),
-    alignmentCurveExponent: clamp(config.scoringModel?.alignmentCurveExponent ?? 0.82, 0.65, 1),
+    moderateAnswerStrength: clamp(config.scoringModel?.moderateAnswerStrength ?? 0.5, 0.25, 0.75),
+    anchorMultiplier: clamp(config.scoringModel?.anchorMultiplier ?? 0.75, 0.25, 1),
+    tradeoffMultiplier: clamp(config.scoringModel?.tradeoffMultiplier ?? 1, 0.5, 1.5),
   };
 }
 
-function getAnswerSignal(question, answer, moderateAnswerStrength) {
-  const keyedAnswer = question.reverse ? 6 - answer : answer;
-
-  if (keyedAnswer === 5) return 1;
-  if (keyedAnswer === 4) return moderateAnswerStrength;
-  if (keyedAnswer === 2) return -moderateAnswerStrength;
-  if (keyedAnswer === 1) return -1;
+function getAnswerSignal(answer, moderateAnswerStrength) {
+  if (answer === 5) return 1;
+  if (answer === 4) return moderateAnswerStrength;
+  if (answer === 2) return -moderateAnswerStrength;
+  if (answer === 1) return -1;
   return 0;
 }
 
-function getEffectiveRoleWeight(weight, questionKind, settings) {
-  const kindMultiplier = questionKind === "tradeoff" ? settings.tradeoffMultiplier : 1;
-  return Math.sign(weight) * Math.abs(weight) ** settings.roleWeightExponent * kindMultiplier;
+function getQuestionMultiplier(questionKind, settings) {
+  return questionKind === "anchor" ? settings.anchorMultiplier : settings.tradeoffMultiplier;
 }
 
-function getRoundedProfile(ranked) {
+function getRoundedProfile(ranked, answers) {
   const alignments = ranked.map((type) => type.alignment);
   const max = Math.max(...alignments);
   const min = Math.min(...alignments);
-  const mean = alignments.reduce((sum, score) => sum + score, 0) / alignments.length;
-  const highRoleCount = alignments.filter((score) => score >= 68).length;
+  const roleMean = alignments.reduce((sum, score) => sum + score, 0) / alignments.length;
+  const anchorValues = config.questions
+    .map((question, index) => ({ question, answer: answers[index] }))
+    .filter(({ question, answer }) => question.kind === "anchor" && Number.isFinite(answer))
+    .map(({ answer }) => (answer - 1) * 25);
+  const anchorMean = anchorValues.length
+    ? anchorValues.reduce((sum, score) => sum + score, 0) / anchorValues.length
+    : 0;
+  const anchorMin = anchorValues.length ? Math.min(...anchorValues) : 0;
+  const highAnchorCount = anchorValues.filter((score) => score >= 75).length;
+  const spread = max - min;
 
   return {
-    isRounded: mean >= 74 && min >= 68 && max - min <= 20 && highRoleCount >= 7,
-    mean: Math.round(mean),
-    spread: max - min,
-    highRoleCount,
+    isRounded: anchorMean >= 75 && anchorMin >= 50 && highAnchorCount >= 5 && spread <= 18,
+    mean: Math.round(roleMean),
+    anchorMean: Math.round(anchorMean),
+    anchorMin,
+    spread,
+    highRoleCount: highAnchorCount,
   };
 }
 
@@ -900,27 +933,27 @@ function calculateScores() {
       return;
     }
 
-    const answerSignal = getAnswerSignal(question, answer, scoringSettings.moderateAnswerStrength);
+    const answerSignal = getAnswerSignal(answer, scoringSettings.moderateAnswerStrength);
     const questionKind = getQuestionKind(question);
     const scoringWeight = Number.isFinite(question.scoringWeight) ? question.scoringWeight : 1;
-    const kindMultiplier = questionKind === "tradeoff" ? scoringSettings.tradeoffMultiplier : 1;
+    const kindMultiplier = getQuestionMultiplier(questionKind, scoringSettings);
 
-    if (Object.hasOwn(dimensionRaw, question.dimension)) {
-      const focusRoleIds = getDimensionFocusRoleIds(question.dimension);
-      const dimensionWeight = focusRoleIds.reduce((sum, typeId) => sum + (question.weights[typeId] ?? 0), 0);
-
-      if (dimensionWeight) {
-        dimensionRaw[question.dimension] += answerSignal * dimensionWeight * kindMultiplier * scoringWeight;
-        dimensionMaxAbs[question.dimension] += Math.abs(dimensionWeight) * kindMultiplier * scoringWeight;
+    Object.entries(question.dimensionWeights ?? {}).forEach(([dimensionId, weight]) => {
+      if (!weight || !Object.hasOwn(dimensionRaw, dimensionId)) {
+        return;
       }
-    }
+
+      const effectiveWeight = weight * kindMultiplier * scoringWeight;
+      dimensionRaw[dimensionId] += answerSignal * effectiveWeight;
+      dimensionMaxAbs[dimensionId] += Math.abs(effectiveWeight);
+    });
 
     Object.entries(question.weights).forEach(([typeId, weight]) => {
       if (!weight || !Object.hasOwn(rawScores, typeId)) {
         return;
       }
 
-      const effectiveWeight = getEffectiveRoleWeight(weight, questionKind, scoringSettings) * scoringWeight;
+      const effectiveWeight = weight * kindMultiplier * scoringWeight;
       rawScores[typeId] += answerSignal * effectiveWeight;
       maxAbsScores[typeId] += Math.abs(effectiveWeight);
 
@@ -942,11 +975,7 @@ function calculateScores() {
 
   const ranked = config.types
     .map((type, order) => {
-      const alignment = normalizeAlignment(
-        rawScores[type.id],
-        maxAbsScores[type.id],
-        scoringSettings.alignmentCurveExponent,
-      );
+      const alignment = normalizeAlignment(rawScores[type.id], maxAbsScores[type.id]);
 
       return {
         ...type,
@@ -967,7 +996,7 @@ function calculateScores() {
 
   const [primaryType, secondaryType] = ranked;
   const resultLabel = getResultLabel(primaryType, secondaryType);
-  const roundedProfile = getRoundedProfile(ranked);
+  const roundedProfile = getRoundedProfile(ranked, state.answers);
   const isFullyNeutral = state.answers.every((answer) => answer === 3);
   const isLowDifferentiation = getResponseVariance(state.answers) < 0.35;
   const badges = calculateBadges({
@@ -1026,7 +1055,7 @@ function renderSystemsSignal(systemsDimension, isActive) {
       <h3>Systems Thinking Signal</h3>
       <p>
         You showed a strong preference for reusable patterns, consistency, documentation, accessibility, or shared product language.
-        This strengthens several paths: UX Design, Interaction Design, Content Design, Human Factors, Product Design, and Design Technology.
+        This strengthens several paths: UX Design, Interaction Design, Content Design, Human Factors, Product Design, and Design Engineering.
       </p>
       <p class="systems-signal__note">Keep this as a secondary signal, not a top-level result.</p>
     </div>
@@ -1068,12 +1097,10 @@ function getQuestionBadgeSignal(signal, answers) {
     return null;
   }
 
-  const question = config.questions[questionIndex];
-  const keyedAnswer = question.reverse ? 6 - answer : answer;
-  const direction = signal.direction === "disagree" ? "disagree" : "agree";
+  const target = signal.target ?? (signal.direction === "disagree" ? "left" : "right");
 
-  // Maps the requested answer direction to a 0-100 badge signal, with Neutral at 50.
-  return direction === "disagree" ? Math.round(((5 - keyedAnswer) / 4) * 100) : Math.round(((keyedAnswer - 1) / 4) * 100);
+  // Question signals use the same centered five-point response, expressed toward a named pole.
+  return target === "left" ? Math.round(((5 - answer) / 4) * 100) : Math.round(((answer - 1) / 4) * 100);
 }
 
 function calculateBadges({ ranked, dimensions, answers = [], isRoundedProfile }) {
@@ -1090,6 +1117,7 @@ function calculateBadges({ ranked, dimensions, answers = [], isRoundedProfile })
     .map((badge, order) => {
       let total = 0;
       let totalWeight = 0;
+      let strongSignalCount = 0;
 
       (badge.signals ?? []).forEach((signal) => {
         let value = null;
@@ -1110,12 +1138,16 @@ function calculateBadges({ ranked, dimensions, answers = [], isRoundedProfile })
 
         total += value * signal.weight;
         totalWeight += signal.weight;
+        if (value >= 75) {
+          strongSignalCount += 1;
+        }
       });
 
       return {
         ...badge,
         order,
         rawScore: totalWeight ? Math.round(total / totalWeight) : 0,
+        strongSignalCount,
         usesComputedSignal: (badge.signals ?? []).some((signal) => signal.source === "computed"),
         sourceSummary: `${(badge.signals ?? []).length} configured signals`,
       };
@@ -1132,9 +1164,11 @@ function calculateBadges({ ranked, dimensions, answers = [], isRoundedProfile })
     .map((badge) => {
       const score = badge.rawScore;
       const relativeLift = badge.rawScore - mean;
+      const hasStrongSignalEvidence =
+        !Number.isFinite(badge.minimumStrongSignals) || badge.strongSignalCount >= badge.minimumStrongSignals;
       const hasPositiveEvidence = badge.usesComputedSignal
         ? isRoundedProfile
-        : badge.rawScore >= scoring.minRawScore && relativeLift >= scoring.minimumLift;
+        : badge.rawScore >= scoring.minRawScore && relativeLift >= scoring.minimumLift && hasStrongSignalEvidence;
       const level = hasPositiveEvidence ? getBadgeLevel(score, levels) : null;
 
       return {
@@ -1205,12 +1239,27 @@ function formatBadgeSignal(signal = {}) {
     case "dimension":
       return getDimensionLabel(signal.id);
     case "role":
-      return `${getRoleLabel(signal.id)} alignment`;
-    case "question":
-      return `${signal.direction === "disagree" ? "Disagree with" : "Agree with"} ${getQuestionLabel(signal.id)}`;
+      return `${getRoleLabel(signal.id)} relative fit`;
+    case "question": {
+      const question = config.questions.find((item) => item.id === signal.id);
+
+      if (!question) {
+        return `Question signal: ${signal.id ?? "unknown"}`;
+      }
+
+      if (signal.target === "left") {
+        return `Prefer A: ${question.leftLabel ?? question.prompt}`;
+      }
+
+      if (signal.target === "right") {
+        return `Prefer B: ${question.rightLabel ?? question.prompt}`;
+      }
+
+      return `High match: ${question.prompt}`;
+    }
     case "computed":
       if (signal.id === "roundedProfile") {
-        return "Rounded profile / balanced high scores";
+        return "Rounded profile / balanced role fit";
       }
 
       return `Computed signal: ${signal.id ?? "unknown"}`;
@@ -1460,7 +1509,7 @@ function renderResult() {
   resultRadar.innerHTML = renderRadarChart({
     dimensions,
     color: topType.color,
-    title: "Your Designer Skill Shape",
+    title: "Your Relative Practice Signals",
   });
   badgePanel.innerHTML = renderBadgePanel(badges);
 
@@ -1468,19 +1517,19 @@ function renderResult() {
     resultEyebrow.textContent = "No directional signal";
     resultTitle.textContent = "No clear designer lean";
     resultSummary.textContent =
-      "Neutral answers add no directional evidence. Choose the option that is closer to your real behavior, even when neither side feels perfect, to surface a useful result.";
+      "Equal-pull and mixed answers add no directional evidence. Choose the closer preference, even when neither side feels perfect, to surface a useful result.";
     secondaryResult.hidden = true;
     secondaryResult.innerHTML = "";
   } else if (roundedProfile.isRounded) {
     resultEyebrow.textContent = "Rounded profile";
     resultTitle.textContent = "Multidisciplinary Designer";
     resultSummary.textContent =
-      "Your answers show broad coverage across several design-adjacent paths. Use this as breadth, then use your strongest lanes as portfolio positioning.";
+      "Your anchors show broad interest while your tradeoffs remain balanced across several design-adjacent paths. Use the strongest lanes as your current portfolio emphasis.";
 
     secondaryResult.hidden = false;
     secondaryResult.innerHTML = `
       <h3>Closest emphasis: ${escapeHtml(topType.name)}${secondType ? ` + ${escapeHtml(secondType.name)}` : ""}</h3>
-      <p>Your highest role signals still matter. The rounded profile means you can credibly frame yourself as T-shaped instead of narrowly specialized.</p>
+      <p>Your highest role signals still matter. This rounded result describes a broad center of gravity, not equal mastery of every discipline.</p>
     `;
   } else {
     resultEyebrow.textContent = resultLabel.label;
@@ -1503,15 +1552,15 @@ function renderResult() {
 
   responseWarning.hidden = !isLowDifferentiation;
   responseWarning.textContent = isFullyNeutral
-    ? "All answers were Neutral, so the quiz cannot distinguish between the seven designer types."
+    ? "Every answer stayed in the middle, so the quiz cannot distinguish between the seven designer types."
     : isLowDifferentiation
-      ? "Your responses were very similar across questions, so this result may be less differentiated. Try retaking the quiz and forcing tradeoffs."
+      ? "Your responses stayed in a similar position across questions, so this result may be affected by side preference. Retake and compare each pair independently."
       : "";
 
   dimensionSummary.innerHTML = isFullyNeutral
     ? `
       <h3>No dimensions separated</h3>
-      <p>Every dimension remains at the midpoint because Neutral contributes zero directional evidence.</p>
+      <p>Every dimension remains at the midpoint because middle responses contribute zero directional evidence.</p>
     `
     : `
       <h3>Why this result surfaced</h3>
@@ -1540,8 +1589,8 @@ function renderResult() {
     ? [
         renderList("How to get a clearer result", [
           "Retake the quiz and choose the closer side of each tradeoff.",
-          "Use Strongly Agree or Strongly Disagree only when the behavior is characteristic of you.",
-          "Answer from recent practice rather than from what an ideal designer should do.",
+          "Use Strongly A or Strongly B only when one option clearly wins for you.",
+          "Answer from your likely behavior rather than from what an ideal designer should do.",
         ]),
       ]
     : roundedProfile.isRounded

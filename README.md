@@ -8,17 +8,7 @@ Static GitHub Pages design-career reflection tool for people exploring design, b
 npm start
 ```
 
-Then open:
-
-```text
-http://localhost:4300/
-```
-
-You can also run the server directly:
-
-```bash
-node serve-local.mjs
-```
+Then open `http://localhost:4300/`. You can also run the server directly with `node serve-local.mjs`.
 
 ## Validate before pushing
 
@@ -26,122 +16,93 @@ node serve-local.mjs
 npm run check
 ```
 
-This checks the standalone JavaScript files for syntax errors.
+This checks JavaScript syntax and runs the deterministic scoring-model audit. Run the audit directly with `npm run audit:scoring`.
 
 ## Current quiz model
 
-- Uses seven primary outcomes: Product Designer, UX Designer, Interaction Designer, UX Researcher, Design Technologist / UI Engineer, Human Factors Engineer, and UX Writer / Content Designer.
-- Retains systems thinking as a cross-cutting scoring dimension instead of a standalone result.
-- Surfaces a secondary Systems Thinking Signal when reusable patterns, documentation, accessibility, or shared product language score strongly.
-- Added seven scoring dimensions in `questions.js`.
-- Replaced raw `answer * weight` scoring with nonlinear centered Likert alignment scoring.
-- Added reverse-scored item support.
-- Added primary, blended, and strong secondary result handling.
-- Added richer result copy: strengths, project ideas, skills to build, roles to explore, and top dimensions.
-- Saves in-progress answers locally and invalidates saved progress when the configured question-set version changes.
+- Uses seven primary outcomes: Product Designer, UX Designer, Interaction Designer, UX Researcher, Design Engineer / UI Engineer, Human Factors Engineer, and UX Writer / Content Designer.
+- Retains systems thinking as a cross-cutting dimension instead of a standalone result.
+- Uses 23 balanced bipolar tradeoffs and seven narrow behavioral anchors.
+- Keeps seven explicit role vectors and seven explicit dimension vectors in `questions.js`.
+- Uses centered, linear relative-fit scoring so every displayed shift can be traced to a visible choice.
+- Supports primary, blended, rounded, and strong-secondary result handling.
+- Includes configurable badges, a static SVG radar, career links, print, PDF, and image export.
+- Saves progress locally and discards it when `questionSetVersion` changes.
 
 ## Scoring model
 
-The quiz uses a 5-point Likert scale:
+Tradeoff questions use two equally credible alternatives:
 
 ```text
-1 = Strongly disagree
-2 = Disagree
-3 = Neutral
-4 = Agree
-5 = Strongly agree
+1 = Strongly A
+2 = Leaning A
+3 = Equal pull
+4 = Leaning B
+5 = Strongly B
 ```
 
-For scoring, answers are transformed like this:
+Anchors use the same five positions from `Not characteristic` to `Highly characteristic`. Answers are transformed as:
 
 ```text
-Strongly disagree = -1
-Disagree = -0.45
-Neutral = 0
-Agree = 0.45
-Strongly agree = 1
+1 = -1
+2 = -0.5
+3 = 0
+4 = 0.5
+5 = 1
 ```
 
-Neutral contributes no directional signal. An all-neutral run returns “No clear designer lean” instead of assigning the first configured outcome. Role-defining weights are amplified relative to weak adjacent-role weights, tradeoff questions receive a modest separation multiplier, and role scores are normalized around a visible 50 midpoint. Scores below 50 indicate a counter-signal; scores above 50 indicate alignment. They remain directional estimates rather than precise personality measurements.
+For each tradeoff, A contributes `-3` to its signed role vector and B contributes `+3`. The answer direction makes the selected role's evidence positive and the alternative role's evidence negative. Anchors contribute `+3` only to their target role and use a `0.75` multiplier.
 
-## Result Visualization
+Scores are normalized linearly around 50. Below 50 means the answers favored other paths, not that the respondent lacks the skill. An all-middle run returns "No clear designer lean."
 
-The quiz result renders a static SVG radar chart based on dimension alignment scores. This is intentionally implemented without external charting libraries so it remains GitHub Pages-friendly and print/PDF compatible.
+## Methodology and evidence
 
-## Visual Assets
+The question format and role constructs were informed by:
 
-The static site self-hosts its visual runtime assets so GitHub Pages does not depend on third-party CDNs:
+- [Pew Research Center: Writing Survey Questions](https://www.pewresearch.org/writing-survey-questions/) on acquiescence and alternative-statement formats
+- [Brown and Maydeu-Olivares: Item Response Modeling of Forced-Choice Questionnaires](https://doi.org/10.1177/0013164410375112) on forced-choice benefits and ipsative limitations
+- [O*NET Web and Digital Interface Designers](https://www.onetonline.org/link/summary/15-1255.00)
+- [O*NET Human Factors Engineers and Ergonomists](https://www.onetonline.org/link/summary/17-2112.01)
+- [UK Government Digital and Data Profession Capability Framework](https://ddat-capability-framework.service.gov.uk/)
+- [GitLab Product Designer job family](https://handbook.gitlab.com/job-description-library/product/product-designer/)
+- [Vercel Design Engineering](https://vercel.com/blog/design-engineering-at-vercel)
 
-- Manrope Variable for interface typography
-- Lucide SVG paths for command and external-link icons
-- Motion for reduced-motion-aware question, result, and in-view animation
+These sources support the constructs and relative-choice format; they do not validate the quiz's numerical weights. Results compare preferences within one response profile and must not be compared as ability scores between people.
 
-Runtime files and licenses are committed under `assets/fonts/` and `assets/vendor/`. The application still runs as plain HTML, CSS, and JavaScript without a build step.
+## Result visualization
 
-The hero includes an interactive designer-space map organized into Research & Discovery, Product Strategy, Testing & Validation, and Prototyping & Code zones. Its nodes and idle keyframe path use the seven configured quiz outcomes; pointer, touch, and keyboard focus resolve the nearest result type at the current coordinates. Idle motion is disabled when reduced motion is requested.
+The result uses a static SVG radar based on relative dimension signals. It intentionally avoids a charting dependency so the app remains GitHub Pages-friendly and print/PDF compatible.
 
-## Themes and Contrast
+## Designer badges
 
-The interface defaults to the operating-system color preference and provides a persistent light/dark theme toggle. Both themes use WCAG 2.0 AA text contrast and at least 3:1 contrast for essential control and card boundaries. Print and export output remains light for predictable document rendering.
+Badges are configurable sub-signals derived from role, dimension, question, and computed scores. A badge must clear both an evidence floor and a meaningful relative lift. Bronze, Silver, Gold, and Rainbow begin at 60, 70, 80, and 87 respectively. Results show at most four badges.
 
-## Designer Badges
+The home page includes a config-driven badge glossary showing each badge's description and contributing signals without exposing internal weights.
 
-Badges are configurable sub-signals derived from role, dimension, question, and computed scores. A badge must clear both an absolute evidence floor and a meaningful relative lift over the person's overall badge profile. Once unlocked, Bronze, Silver, Gold, and Rainbow are based on absolute evidence, with Rainbow beginning at 87. Results award at most the four strongest badges, so flat or broadly capable profiles do not unlock the entire index. They are directional reflections, not credentials.
+## Visual assets, themes, and contrast
 
-## Badge Glossary
+The site self-hosts Manrope Variable, Lucide SVG paths, Motion, and company logos under `assets/`. It remains plain HTML, CSS, and JavaScript without a build step or runtime CDN.
 
-The home page includes a badge glossary below the possible outcomes section. It renders from the configured badge definitions, showing the badge name, description, and contributing signals without exposing internal weights.
+The interface follows the operating-system color preference and provides a persistent light/dark toggle. Both themes target WCAG 2.0 AA text contrast and visible control boundaries. Print and export output remains light.
 
-## Career Opportunities
+The hero's interactive designer-space map uses the seven configured outcomes. Pointer, touch, keyboard focus, and reduced-motion behavior are supported.
 
-Outcome previews and result guidance link to organization career pages so people can explore how design teams describe roles, skills, and career paths. Organizations are examples for exploration; links do not guarantee current openings.
+## Career opportunities
+
+Outcome previews and result guidance link to organization career pages so people can explore roles and career paths. Organizations are examples for exploration; links do not guarantee current openings.
 
 ## Deployment
 
-If GitHub Pages is configured to publish from `main` and the repository root:
+For a root deployment from `main`:
 
 ```bash
-git add .
-git commit -m "Update quiz model"
+git add app.js index.html questions.js styles.css README.md package.json scripts/audit-scoring.mjs
+git commit -m "Redesign quiz around relative career fit"
 git push origin main
 ```
 
-If GitHub Pages is configured to publish from `gh-pages`, mirror the same static files there:
-
-```bash
-git checkout gh-pages
-git checkout main -- .nojekyll README.md app.js index.html questions.js styles.css serve-local.mjs package.json
-git add .
-git commit -m "Deploy seven-outcome quiz model"
-git push origin gh-pages
-```
+If GitHub Pages publishes from `gh-pages`, mirror the same files there after committing `main`.
 
 ## Caveat
 
-This is a directional career reflection tool for people at any experience level. It is not a credential, diagnosis, hiring assessment, or fixed identity label.
-
-## Company Logos
-
-The possible-outcomes cards read local logo files from:
-
-```text
-assets/company-logos/
-```
-
-Expected filenames:
-
-```text
-ABT.png
-BAH.png
-FIG.png
-MSFT.png
-AMZN.png
-META.png
-BDX.png
-ILMN.png
-SONY.png
-google.png
-ADBE.png
-```
-
-These logos are used as small linked company chips. The accompanying company names and links are examples for exploration, not a guarantee of current open roles.
+This is a source-grounded, directional career reflection tool for people at any experience level. It is not a credential, diagnosis, hiring assessment, psychometrically validated instrument, or fixed identity label.

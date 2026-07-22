@@ -5,7 +5,8 @@
   "type": "module",
   "scripts": {
     "start": "node serve-local.mjs",
-    "check": "node --check app.js && node --check questions.js && node --check serve-local.mjs"
+    "audit:scoring": "node scripts/audit-scoring.mjs",
+    "check": "node --check app.js && node --check questions.js && node --check serve-local.mjs && npm run audit:scoring"
   },
   "devDependencies": {
     "@fontsource-variable/manrope": "^5.3.0",
