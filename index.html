@@ -65,15 +65,27 @@
           </div>
         </div>
 
-        <aside class="type-orbit" aria-label="Designer type preview">
-          <div class="orbit-card orbit-card--product"><span>Product</span><strong>Direction</strong></div>
-          <div class="orbit-card orbit-card--ux"><span>UX</span><strong>Flows</strong></div>
-          <div class="orbit-card orbit-card--interaction"><span>Interaction</span><strong>Behavior</strong></div>
-          <div class="orbit-card orbit-card--research"><span>Research</span><strong>Evidence</strong></div>
-          <div class="orbit-card orbit-card--systems"><span>Systems</span><strong>Scale</strong></div>
-          <div class="orbit-card orbit-card--technology"><span>Technology</span><strong>Build</strong></div>
-          <div class="orbit-card orbit-card--human"><span>Human Factors</span><strong>Safety</strong></div>
-          <div class="orbit-card orbit-card--content"><span>Content</span><strong>Clarity</strong></div>
+        <aside class="type-sandbox" aria-labelledby="type-sandbox-title">
+          <div class="type-sandbox__topbar">
+            <div>
+              <p class="eyebrow">Designer space</p>
+              <h2 id="type-sandbox-title">Move through the possibilities.</h2>
+            </div>
+            <output class="type-sandbox__readout" id="type-sandbox-readout">Product Designer</output>
+          </div>
+          <div class="type-sandbox__field" id="type-sandbox-field">
+            <span class="type-sandbox__axis type-sandbox__axis--top">Strategy</span>
+            <span class="type-sandbox__axis type-sandbox__axis--right">Expression</span>
+            <span class="type-sandbox__axis type-sandbox__axis--bottom">Execution</span>
+            <span class="type-sandbox__axis type-sandbox__axis--left">Evidence</span>
+            <div class="type-sandbox__nodes" id="type-sandbox-nodes"></div>
+            <div class="type-sandbox__cursor" id="type-sandbox-cursor" aria-hidden="true">
+              <span id="type-sandbox-cursor-label">Product</span>
+            </div>
+          </div>
+          <p class="sr-only" id="type-sandbox-description">
+            An interactive map of the quiz's design directions. Move a pointer through the map to highlight the nearest direction.
+          </p>
         </aside>
       </div>
     </section>

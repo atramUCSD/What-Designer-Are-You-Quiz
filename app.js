@@ -50,9 +50,30 @@ const typePreviewContent = byId("type-preview-content");
 const badgeGlossaryToggle = byId("badge-glossary-toggle");
 const badgeGlossaryContent = byId("badge-glossary-content");
 const themeToggle = byId("theme-toggle");
+const typeSandboxField = byId("type-sandbox-field");
+const typeSandboxNodes = byId("type-sandbox-nodes");
+const typeSandboxCursor = byId("type-sandbox-cursor");
+const typeSandboxCursorLabel = byId("type-sandbox-cursor-label");
+const typeSandboxReadout = byId("type-sandbox-readout");
 
 const STORAGE_KEY = "what-designer-are-you-progress";
 const THEME_STORAGE_KEY = "what-designer-are-you-theme";
+const TYPE_SANDBOX_DURATION = 18000;
+const TYPE_SANDBOX_PROFILES = [
+  { id: "product", shortName: "Product", fallbackName: "Product Designer", x: 50, y: 16, fallbackColor: "#d29b2f" },
+  { id: "content", shortName: "Content", fallbackName: "UX Writer / Content Designer", x: 82, y: 27, fallbackColor: "#cc4f8b" },
+  { id: "interaction", shortName: "Interaction", fallbackName: "Interaction Designer", x: 78, y: 54, fallbackColor: "#1f7ae0" },
+  { id: "technology", shortName: "Technology", fallbackName: "Design Technologist / UI Engineer", x: 72, y: 82, fallbackColor: "#55a66f" },
+  { id: "humanFactors", shortName: "Human Factors", fallbackName: "Human Factors Engineer", x: 25, y: 80, fallbackColor: "#c85d3a" },
+  { id: "ux", shortName: "UX", fallbackName: "UX Designer", x: 21, y: 54, fallbackColor: "#0f766e" },
+  { id: "research", shortName: "Research", fallbackName: "UX Researcher", x: 17, y: 28, fallbackColor: "#3b79b7" },
+  { id: "systems", shortName: "Systems", fallbackName: "Systems Thinking Signal", x: 50, y: 49, fallbackColor: "#7c5cbf", isSignal: true },
+];
+
+let typeSandboxAnimationFrame = null;
+let typeSandboxAnimationStart = null;
+let typeSandboxResumeTimer = null;
+let resolvedTypeSandboxProfiles = null;
 
 function getSavedTheme() {
   try {
@@ -79,6 +100,135 @@ function saveTheme(theme) {
   } catch {
     // The selected theme still applies for the current page when storage is unavailable.
   }
+}
+
+function getTypeSandboxProfiles() {
+  resolvedTypeSandboxProfiles ??= TYPE_SANDBOX_PROFILES.map((profile) => {
+    const configuredType = config.types.find((type) => type.id === profile.id);
+
+    return {
+      ...profile,
+      name: configuredType?.name ?? profile.fallbackName,
+      color: configuredType?.color ?? profile.fallbackColor,
+    };
+  });
+
+  return resolvedTypeSandboxProfiles;
+}
+
+function getNearestSandboxProfile(x, y) {
+  return getTypeSandboxProfiles().reduce((nearest, profile) => {
+    const distance = Math.hypot(profile.x - x, profile.y - y);
+    return !nearest || distance < nearest.distance ? { ...profile, distance } : nearest;
+  }, null);
+}
+
+function updateTypeSandbox(x, y) {
+  const boundedX = clamp(x, 4, 96);
+  const boundedY = clamp(y, 5, 95);
+  const profile = getNearestSandboxProfile(boundedX, boundedY);
+
+  if (!profile) {
+    return;
+  }
+
+  typeSandboxCursor.style.setProperty("--sandbox-x", `${boundedX}%`);
+  typeSandboxCursor.style.setProperty("--sandbox-y", `${boundedY}%`);
+  typeSandboxCursor.style.setProperty("--sandbox-color", profile.color);
+  typeSandboxCursor.classList.toggle("is-flipped-x", boundedX > 68);
+  typeSandboxCursor.classList.toggle("is-flipped-y", boundedY > 82);
+  typeSandboxCursorLabel.textContent = profile.shortName;
+  typeSandboxReadout.textContent = profile.name;
+  typeSandboxReadout.style.setProperty("--sandbox-color", profile.color);
+
+  typeSandboxNodes.querySelectorAll(".type-sandbox__node").forEach((node) => {
+    node.classList.toggle("is-active", node.dataset.profileId === profile.id);
+  });
+}
+
+function updateTypeSandboxFromPointer(event) {
+  const bounds = typeSandboxField.getBoundingClientRect();
+  const x = ((event.clientX - bounds.left) / bounds.width) * 100;
+  const y = ((event.clientY - bounds.top) / bounds.height) * 100;
+  updateTypeSandbox(x, y);
+}
+
+function stopTypeSandboxAnimation() {
+  if (typeSandboxAnimationFrame !== null) {
+    window.cancelAnimationFrame(typeSandboxAnimationFrame);
+    typeSandboxAnimationFrame = null;
+  }
+}
+
+function startTypeSandboxAnimation() {
+  stopTypeSandboxAnimation();
+
+  if (window.matchMedia("(prefers-reduced-motion: reduce)").matches || introPanel.hidden) {
+    return;
+  }
+
+  const keyframes = getTypeSandboxProfiles();
+  typeSandboxAnimationStart = null;
+
+  const animate = (timestamp) => {
+    typeSandboxAnimationStart ??= timestamp;
+    const progress = ((timestamp - typeSandboxAnimationStart) % TYPE_SANDBOX_DURATION) / TYPE_SANDBOX_DURATION;
+    const framePosition = progress * keyframes.length;
+    const frameIndex = Math.floor(framePosition);
+    const localProgress = framePosition - frameIndex;
+    const easedProgress = 0.5 - Math.cos(localProgress * Math.PI) / 2;
+    const current = keyframes[frameIndex];
+    const next = keyframes[(frameIndex + 1) % keyframes.length];
+
+    updateTypeSandbox(
+      current.x + (next.x - current.x) * easedProgress,
+      current.y + (next.y - current.y) * easedProgress,
+    );
+    typeSandboxAnimationFrame = window.requestAnimationFrame(animate);
+  };
+
+  typeSandboxAnimationFrame = window.requestAnimationFrame(animate);
+}
+
+function scheduleTypeSandboxAnimation() {
+  window.clearTimeout(typeSandboxResumeTimer);
+  typeSandboxResumeTimer = window.setTimeout(startTypeSandboxAnimation, 1000);
+}
+
+function renderTypeSandbox() {
+  const profiles = getTypeSandboxProfiles();
+
+  typeSandboxNodes.innerHTML = profiles
+    .map(
+      (profile) => `
+        <button
+          class="type-sandbox__node"
+          type="button"
+          data-profile-id="${escapeHtml(profile.id)}"
+          style="--node-x: ${profile.x}%; --node-y: ${profile.y}%; --node-color: ${escapeHtml(profile.color)}"
+          aria-label="Show ${escapeHtml(profile.name)}"
+        >
+          <span aria-hidden="true"></span>
+          <strong>${escapeHtml(profile.shortName)}</strong>
+        </button>
+      `,
+    )
+    .join("");
+
+  typeSandboxNodes.querySelectorAll(".type-sandbox__node").forEach((node) => {
+    const profile = profiles.find((item) => item.id === node.dataset.profileId);
+    if (!profile) return;
+
+    node.addEventListener("focus", () => {
+      stopTypeSandboxAnimation();
+      updateTypeSandbox(profile.x, profile.y);
+    });
+    node.addEventListener("blur", scheduleTypeSandboxAnimation);
+    node.addEventListener("click", () => updateTypeSandbox(profile.x, profile.y));
+  });
+
+  updateTypeSandbox(profiles[0].x, profiles[0].y);
+  startTypeSandboxAnimation();
 }
 
 function loadSavedProgress() {
@@ -1410,6 +1560,7 @@ function renderResult() {
 }
 
 startButton.addEventListener("click", () => {
+  stopTypeSandboxAnimation();
   hide(introPanel);
   hide(resultCard);
   show(quizCard);
@@ -1455,6 +1606,7 @@ restartButton.addEventListener("click", () => {
   setSaveStatus("");
   hide(resultCard);
   show(introPanel);
+  startTypeSandboxAnimation();
   persistProgress();
   introPanel.scrollIntoView({ behavior: "smooth", block: "start" });
 });
@@ -1466,6 +1618,24 @@ typePreviewToggle.addEventListener("click", () => {
 badgeGlossaryToggle.addEventListener("click", () => {
   toggleCollapsibleSection(badgeGlossaryToggle, badgeGlossaryContent);
 });
+
+typeSandboxField.addEventListener("pointerenter", (event) => {
+  window.clearTimeout(typeSandboxResumeTimer);
+  stopTypeSandboxAnimation();
+  updateTypeSandboxFromPointer(event);
+});
+
+typeSandboxField.addEventListener("pointermove", (event) => {
+  window.clearTimeout(typeSandboxResumeTimer);
+  stopTypeSandboxAnimation();
+  updateTypeSandboxFromPointer(event);
+});
+typeSandboxField.addEventListener("pointerleave", scheduleTypeSandboxAnimation);
+typeSandboxField.addEventListener("pointerdown", (event) => {
+  stopTypeSandboxAnimation();
+  updateTypeSandboxFromPointer(event);
+});
+typeSandboxField.addEventListener("pointerup", scheduleTypeSandboxAnimation);
 
 themeToggle.addEventListener("click", () => {
   const nextTheme = document.documentElement.dataset.theme === "dark" ? "light" : "dark";
@@ -1515,4 +1685,5 @@ window.addEventListener("afterprint", () => setButtonBusy(savePdfButton, false))
 applyTheme(document.documentElement.dataset.theme);
 renderTypePreview();
 renderBadgeGlossary();
+renderTypeSandbox();
 initializeInViewMotion();
