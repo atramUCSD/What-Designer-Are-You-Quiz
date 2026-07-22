@@ -34,7 +34,7 @@ This checks the standalone JavaScript files for syntax errors.
 - Retains systems thinking as a cross-cutting scoring dimension instead of a standalone result.
 - Surfaces a secondary Systems Thinking Signal when reusable patterns, documentation, accessibility, or shared product language score strongly.
 - Added seven scoring dimensions in `questions.js`.
-- Replaced raw `answer * weight` scoring with centered Likert alignment scoring.
+- Replaced raw `answer * weight` scoring with nonlinear centered Likert alignment scoring.
 - Added reverse-scored item support.
 - Added primary, blended, and strong secondary result handling.
 - Added richer result copy: strengths, project ideas, skills to build, roles to explore, and top dimensions.
@@ -54,12 +54,15 @@ The quiz uses a 5-point Likert scale:
 
 For scoring, answers are transformed like this:
 
-```js
-const keyedAnswer = question.reverse ? 6 - answer : answer;
-const centeredAnswer = keyedAnswer - 3; // 1..5 becomes -2..2
+```text
+Strongly disagree = -1
+Disagree = -0.45
+Neutral = 0
+Agree = 0.45
+Strongly agree = 1
 ```
 
-That means Neutral contributes no directional signal. Role scores are normalized to 0-100 and labeled as current alignment, not as a precise personality score.
+Neutral contributes no directional signal. An all-neutral run returns “No clear designer lean” instead of assigning the first configured outcome. Role-defining weights are amplified relative to weak adjacent-role weights, tradeoff questions receive a modest separation multiplier, and role scores are normalized around a visible 50 midpoint. Scores below 50 indicate a counter-signal; scores above 50 indicate alignment. They remain directional estimates rather than precise personality measurements.
 
 ## Result Visualization
 
@@ -83,7 +86,7 @@ The interface defaults to the operating-system color preference and provides a p
 
 ## Designer Badges
 
-Badges are configurable sub-signals derived from role, dimension, question, and computed scores. Bronze, Silver, Gold, and Rainbow tiers reflect how far a badge rises above the person's overall badge-signal baseline, with an absolute evidence floor required for Bronze. Flat profiles do not unlock badges merely for broad capacity. They are directional reflections, not credentials.
+Badges are configurable sub-signals derived from role, dimension, question, and computed scores. A badge must clear both an absolute evidence floor and a meaningful relative lift over the person's overall badge profile. Once unlocked, Bronze, Silver, Gold, and Rainbow are based on absolute evidence, with Rainbow beginning at 87. Results award at most the four strongest badges, so flat or broadly capable profiles do not unlock the entire index. They are directional reflections, not credentials.
 
 ## Badge Glossary
 

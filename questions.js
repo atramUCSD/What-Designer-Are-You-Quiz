@@ -206,13 +206,15 @@ window.DESIGNER_TYPE_TEST = {
     { id: "q30", prompt: "When risk changes, I switch roles instead of protecting my lane.", dimension: "strategy", kind: "anchor", reverse: false, weights: { product: 2, ux: 2, interaction: 2, research: 2, technology: 2, humanFactors: 2, content: 2 } },
   ],
   scoringModel: {
-    model: "centered-likert-bipolar-anchor-tradeoff",
-    anchorScoreWeight: 0.6,
-    tradeoffScoreWeight: 0.4,
-    note: "Anchor items measure broad capability/interest; tradeoff items create archetype separation. Neutral is zero signal. Positive weights pull toward a role; negative weights pull away from a role.",
-    answerTransform: "const centeredAnswer = (question.reverse ? 6 - answer : answer) - 3;",
-    rawScore: "rawScores[typeId] += centeredAnswer * weight;",
-    maxAbsScore: "maxAbsScores[typeId] += 2 * Math.abs(weight);",
+    model: "centered-likert-nonlinear-role-evidence",
+    moderateAnswerStrength: 0.45,
+    roleWeightExponent: 1.5,
+    tradeoffMultiplier: 1.15,
+    alignmentCurveExponent: 0.82,
+    note: "Neutral is zero signal. Strong answers carry more than twice the force of Agree or Disagree. Role-defining weights are amplified relative to adjacent-role weights, and tradeoffs receive a modest separation multiplier.",
+    answerTransform: "Strongly disagree = -1; Disagree = -0.45; Neutral = 0; Agree = 0.45; Strongly agree = 1.",
+    rawScore: "rawScores[typeId] += answerSignal * sign(weight) * abs(weight)^1.5 * kindMultiplier;",
+    maxAbsScore: "maxAbsScores[typeId] += abs(effectiveWeight);",
     roundedProfileRule: "If role alignments are broadly high with a low spread, label the result as a rounded / multidisciplinary designer profile instead of forcing one narrow archetype.",
   },
   dimensionRoleMap: {
@@ -226,14 +228,14 @@ window.DESIGNER_TYPE_TEST = {
   },
   badgeLevels: [
     { id: "bronze", name: "Bronze", minScore: 60, color: "#b97845" },
-    { id: "silver", name: "Silver", minScore: 72, color: "#9ca3af" },
-    { id: "gold", name: "Gold", minScore: 84, color: "#d29b2f" },
-    { id: "rainbow", name: "Rainbow", minScore: 94, color: "#8b5cf6" },
+    { id: "silver", name: "Silver", minScore: 70, color: "#9ca3af" },
+    { id: "gold", name: "Gold", minScore: 80, color: "#d29b2f" },
+    { id: "rainbow", name: "Rainbow", minScore: 87, color: "#8b5cf6" },
   ],
   badgeScoring: {
     minRawScore: 60,
-    standardDeviationScale: 15,
-    minimumSpread: 4,
+    minimumLift: 8,
+    maximumBadges: 4,
   },
   badges: [
     {
