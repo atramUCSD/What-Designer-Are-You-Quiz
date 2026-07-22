@@ -442,13 +442,16 @@ function renderExternalLinkIcon() {
   `;
 }
 
-function normalizeAlignment(rawScore, maxAbsScore) {
+function normalizeAlignment(rawScore, maxAbsScore, curveExponent = 1) {
   if (!maxAbsScore) {
     return 50;
   }
 
-  // 50 means no clear signal; below 50 indicates disagreement with role-defining items.
-  return Math.round(clamp(50 + 50 * (rawScore / maxAbsScore), 0, 100));
+  const ratio = clamp(rawScore / maxAbsScore, -1, 1);
+  const curvedRatio = Math.sign(ratio) * Math.abs(ratio) ** curveExponent;
+
+  // 50 means no net signal; below 50 means the answers counter this role or dimension.
+  return Math.round(clamp(50 + 50 * curvedRatio, 0, 100));
 }
 
 function getResponseVariance(answers) {
@@ -475,12 +478,12 @@ const RADAR_AXIS_META = {
 
 const DEFAULT_BADGE_LEVELS = [
   { id: "bronze", name: "Bronze", minScore: 60, color: "#b97845" },
-  { id: "silver", name: "Silver", minScore: 72, color: "#9ca3af" },
-  { id: "gold", name: "Gold", minScore: 84, color: "#d29b2f" },
-  { id: "rainbow", name: "Rainbow", minScore: 94, color: "#8b5cf6" },
+  { id: "silver", name: "Silver", minScore: 70, color: "#9ca3af" },
+  { id: "gold", name: "Gold", minScore: 80, color: "#d29b2f" },
+  { id: "rainbow", name: "Rainbow", minScore: 87, color: "#8b5cf6" },
 ];
 
-const MAX_VISIBLE_BADGES = 6;
+const MAX_VISIBLE_BADGES = 4;
 const LEVEL_RANK = { rainbow: 4, gold: 3, silver: 2, bronze: 1 };
 
 function polarPoint(centerX, centerY, radius, angleDegrees) {
@@ -842,15 +845,28 @@ function getQuestionKind(question) {
   return question.kind === "anchor" ? "anchor" : "tradeoff";
 }
 
-function getScoreBlendWeights() {
-  const anchorWeight = clamp(config.scoringModel?.anchorScoreWeight ?? 0.6, 0, 1);
-  const tradeoffWeight = clamp(config.scoringModel?.tradeoffScoreWeight ?? 1 - anchorWeight, 0, 1);
-  const total = anchorWeight + tradeoffWeight || 1;
-
+function getScoringSettings() {
   return {
-    anchor: anchorWeight / total,
-    tradeoff: tradeoffWeight / total,
+    moderateAnswerStrength: clamp(config.scoringModel?.moderateAnswerStrength ?? 0.45, 0.25, 0.75),
+    roleWeightExponent: clamp(config.scoringModel?.roleWeightExponent ?? 1.5, 1, 2),
+    tradeoffMultiplier: clamp(config.scoringModel?.tradeoffMultiplier ?? 1.15, 1, 1.5),
+    alignmentCurveExponent: clamp(config.scoringModel?.alignmentCurveExponent ?? 0.82, 0.65, 1),
   };
+}
+
+function getAnswerSignal(question, answer, moderateAnswerStrength) {
+  const keyedAnswer = question.reverse ? 6 - answer : answer;
+
+  if (keyedAnswer === 5) return 1;
+  if (keyedAnswer === 4) return moderateAnswerStrength;
+  if (keyedAnswer === 2) return -moderateAnswerStrength;
+  if (keyedAnswer === 1) return -1;
+  return 0;
+}
+
+function getEffectiveRoleWeight(weight, questionKind, settings) {
+  const kindMultiplier = questionKind === "tradeoff" ? settings.tradeoffMultiplier : 1;
+  return Math.sign(weight) * Math.abs(weight) ** settings.roleWeightExponent * kindMultiplier;
 }
 
 function getRoundedProfile(ranked) {
@@ -869,18 +885,12 @@ function getRoundedProfile(ranked) {
 }
 
 function calculateScores() {
-  const rawScores = {
-    anchor: Object.fromEntries(config.types.map((type) => [type.id, 0])),
-    tradeoff: Object.fromEntries(config.types.map((type) => [type.id, 0])),
-  };
-  const maxAbsScores = {
-    anchor: Object.fromEntries(config.types.map((type) => [type.id, 0])),
-    tradeoff: Object.fromEntries(config.types.map((type) => [type.id, 0])),
-  };
+  const rawScores = Object.fromEntries(config.types.map((type) => [type.id, 0]));
+  const maxAbsScores = Object.fromEntries(config.types.map((type) => [type.id, 0]));
   const extremeCounts = Object.fromEntries(config.types.map((type) => [type.id, 0]));
   const dimensionRaw = Object.fromEntries(config.dimensions.map((dimension) => [dimension.id, 0]));
   const dimensionMaxAbs = Object.fromEntries(config.dimensions.map((dimension) => [dimension.id, 0]));
-  const scoreBlend = getScoreBlendWeights();
+  const scoringSettings = getScoringSettings();
 
   config.questions.forEach((question, index) => {
     const answer = state.answers[index];
@@ -890,31 +900,32 @@ function calculateScores() {
       return;
     }
 
-    const keyedAnswer = question.reverse ? 6 - answer : answer;
-    const centeredAnswer = keyedAnswer - 3; // Maps 1..5 to -2..2 so Neutral adds no directional signal.
+    const answerSignal = getAnswerSignal(question, answer, scoringSettings.moderateAnswerStrength);
     const questionKind = getQuestionKind(question);
     const scoringWeight = Number.isFinite(question.scoringWeight) ? question.scoringWeight : 1;
+    const kindMultiplier = questionKind === "tradeoff" ? scoringSettings.tradeoffMultiplier : 1;
 
     if (Object.hasOwn(dimensionRaw, question.dimension)) {
       const focusRoleIds = getDimensionFocusRoleIds(question.dimension);
       const dimensionWeight = focusRoleIds.reduce((sum, typeId) => sum + (question.weights[typeId] ?? 0), 0);
 
       if (dimensionWeight) {
-        dimensionRaw[question.dimension] += centeredAnswer * dimensionWeight * scoringWeight;
-        dimensionMaxAbs[question.dimension] += 2 * Math.abs(dimensionWeight) * scoringWeight;
+        dimensionRaw[question.dimension] += answerSignal * dimensionWeight * kindMultiplier * scoringWeight;
+        dimensionMaxAbs[question.dimension] += Math.abs(dimensionWeight) * kindMultiplier * scoringWeight;
       }
     }
 
     Object.entries(question.weights).forEach(([typeId, weight]) => {
-      if (!weight || !Object.hasOwn(rawScores[questionKind], typeId)) {
+      if (!weight || !Object.hasOwn(rawScores, typeId)) {
         return;
       }
 
-      rawScores[questionKind][typeId] += centeredAnswer * weight * scoringWeight;
-      maxAbsScores[questionKind][typeId] += 2 * Math.abs(weight) * scoringWeight;
+      const effectiveWeight = getEffectiveRoleWeight(weight, questionKind, scoringSettings) * scoringWeight;
+      rawScores[typeId] += answerSignal * effectiveWeight;
+      maxAbsScores[typeId] += Math.abs(effectiveWeight);
 
-      // Used only as a late tie-breaker for strong answers on role-defining items.
-      if (Math.abs(centeredAnswer) === 2 && Math.abs(weight) >= 3) {
+      // Only aligned extreme evidence can help a role in a late tie-breaker.
+      if (Math.abs(answerSignal) === 1 && Math.abs(weight) >= 3 && answerSignal * weight > 0) {
         extremeCounts[typeId] += 1;
       }
     });
@@ -931,17 +942,17 @@ function calculateScores() {
 
   const ranked = config.types
     .map((type, order) => {
-      const anchorAlignment = normalizeAlignment(rawScores.anchor[type.id], maxAbsScores.anchor[type.id]);
-      const tradeoffAlignment = normalizeAlignment(rawScores.tradeoff[type.id], maxAbsScores.tradeoff[type.id]);
-      const alignment = Math.round(anchorAlignment * scoreBlend.anchor + tradeoffAlignment * scoreBlend.tradeoff);
+      const alignment = normalizeAlignment(
+        rawScores[type.id],
+        maxAbsScores[type.id],
+        scoringSettings.alignmentCurveExponent,
+      );
 
       return {
         ...type,
         order,
-        rawScore: rawScores.anchor[type.id] + rawScores.tradeoff[type.id],
+        rawScore: rawScores[type.id],
         extremeCount: extremeCounts[type.id],
-        anchorAlignment,
-        tradeoffAlignment,
         alignment,
       };
     })
@@ -957,6 +968,7 @@ function calculateScores() {
   const [primaryType, secondaryType] = ranked;
   const resultLabel = getResultLabel(primaryType, secondaryType);
   const roundedProfile = getRoundedProfile(ranked);
+  const isFullyNeutral = state.answers.every((answer) => answer === 3);
   const isLowDifferentiation = getResponseVariance(state.answers) < 0.35;
   const badges = calculateBadges({
     ranked,
@@ -975,6 +987,7 @@ function calculateScores() {
     resultMode: resultLabel.mode,
     isRoundedProfile: roundedProfile.isRounded,
     roundedProfile,
+    isFullyNeutral,
     isLowDifferentiation,
   };
 }
@@ -1069,8 +1082,8 @@ function calculateBadges({ ranked, dimensions, answers = [], isRoundedProfile })
   const levels = getBadgeLevels();
   const scoring = {
     minRawScore: 60,
-    standardDeviationScale: 15,
-    minimumSpread: 4,
+    minimumLift: 8,
+    maximumBadges: MAX_VISIBLE_BADGES,
     ...(config.badgeScoring ?? {}),
   };
   const candidates = getBadgeDefinitions()
@@ -1115,26 +1128,19 @@ function calculateBadges({ ranked, dimensions, answers = [], isRoundedProfile })
   const mean = comparableScores.length
     ? comparableScores.reduce((sum, score) => sum + score, 0) / comparableScores.length
     : 0;
-  const variance = comparableScores.length
-    ? comparableScores.reduce((sum, score) => sum + (score - mean) ** 2, 0) / comparableScores.length
-    : 0;
-  const standardDeviation = Math.sqrt(variance);
-
   return candidates
     .map((badge) => {
-      const score = badge.usesComputedSignal
-        ? badge.rawScore
-        : standardDeviation >= scoring.minimumSpread
-          ? Math.round(clamp(50 + ((badge.rawScore - mean) / standardDeviation) * scoring.standardDeviationScale, 0, 100))
-          : 50;
+      const score = badge.rawScore;
+      const relativeLift = badge.rawScore - mean;
       const hasPositiveEvidence = badge.usesComputedSignal
         ? isRoundedProfile
-        : badge.rawScore >= scoring.minRawScore && score >= 60;
+        : badge.rawScore >= scoring.minRawScore && relativeLift >= scoring.minimumLift;
       const level = hasPositiveEvidence ? getBadgeLevel(score, levels) : null;
 
       return {
         ...badge,
         score,
+        relativeLift,
         level,
         color: level?.color ?? "#d8d1c5",
       };
@@ -1145,7 +1151,8 @@ function calculateBadges({ ranked, dimensions, answers = [], isRoundedProfile })
         (LEVEL_RANK[badgeB.level.id] ?? 0) - (LEVEL_RANK[badgeA.level.id] ?? 0) ||
         badgeB.score - badgeA.score ||
         badgeA.order - badgeB.order,
-    );
+    )
+    .slice(0, Math.max(1, Math.round(scoring.maximumBadges)));
 }
 
 function renderBadgePanel(badges) {
@@ -1439,6 +1446,7 @@ function renderResult() {
     secondaryType: secondType,
     resultLabel,
     roundedProfile,
+    isFullyNeutral,
     isLowDifferentiation,
   } = calculateScores();
   const topDimensions = dimensions.slice(0, 3);
@@ -1456,7 +1464,14 @@ function renderResult() {
   });
   badgePanel.innerHTML = renderBadgePanel(badges);
 
-  if (roundedProfile.isRounded) {
+  if (isFullyNeutral) {
+    resultEyebrow.textContent = "No directional signal";
+    resultTitle.textContent = "No clear designer lean";
+    resultSummary.textContent =
+      "Neutral answers add no directional evidence. Choose the option that is closer to your real behavior, even when neither side feels perfect, to surface a useful result.";
+    secondaryResult.hidden = true;
+    secondaryResult.innerHTML = "";
+  } else if (roundedProfile.isRounded) {
     resultEyebrow.textContent = "Rounded profile";
     resultTitle.textContent = "Multidisciplinary Designer";
     resultSummary.textContent =
@@ -1487,30 +1502,49 @@ function renderResult() {
   setSaveStatus("");
 
   responseWarning.hidden = !isLowDifferentiation;
-  responseWarning.textContent = isLowDifferentiation
-    ? "Your responses were very similar across questions, so this result may be less differentiated. Try retaking the quiz and forcing tradeoffs."
-    : "";
+  responseWarning.textContent = isFullyNeutral
+    ? "All answers were Neutral, so the quiz cannot distinguish between the seven designer types."
+    : isLowDifferentiation
+      ? "Your responses were very similar across questions, so this result may be less differentiated. Try retaking the quiz and forcing tradeoffs."
+      : "";
 
-  dimensionSummary.innerHTML = `
-    <h3>Why this result surfaced</h3>
-    <div class="dimension-list">
-      ${topDimensions
-        .map(
-          (dimension) => `
-            <div class="dimension-row">
-              <span>${escapeHtml(dimension.name)}</span>
-              <strong>${dimension.alignment}/100</strong>
-              <p>${escapeHtml(dimension.summary)}</p>
-            </div>
-          `,
-        )
-        .join("")}
-    </div>
-    ${renderSystemsSignal(systemsDimension, hasSystemsSignal)}
-  `;
+  dimensionSummary.innerHTML = isFullyNeutral
+    ? `
+      <h3>No dimensions separated</h3>
+      <p>Every dimension remains at the midpoint because Neutral contributes zero directional evidence.</p>
+    `
+    : `
+      <h3>Why this result surfaced</h3>
+      <div class="dimension-list">
+        ${topDimensions
+          .map(
+            (dimension) => `
+              <div class="dimension-row">
+                <span>${escapeHtml(dimension.name)}</span>
+                <strong>${dimension.alignment}/100</strong>
+                <p>${escapeHtml(dimension.summary)}</p>
+              </div>
+            `,
+          )
+          .join("")}
+      </div>
+      ${renderSystemsSignal(systemsDimension, hasSystemsSignal)}
+    `;
 
-  const companyReferenceTypes = roundedProfile.isRounded ? ranked.slice(0, 4) : [topType, secondType].filter(Boolean);
-  const nextStepSections = roundedProfile.isRounded
+  const companyReferenceTypes = isFullyNeutral
+    ? []
+    : roundedProfile.isRounded
+      ? ranked.slice(0, 4)
+      : [topType, secondType].filter(Boolean);
+  const nextStepSections = isFullyNeutral
+    ? [
+        renderList("How to get a clearer result", [
+          "Retake the quiz and choose the closer side of each tradeoff.",
+          "Use Strongly Agree or Strongly Disagree only when the behavior is characteristic of you.",
+          "Answer from recent practice rather than from what an ideal designer should do.",
+        ]),
+      ]
+    : roundedProfile.isRounded
     ? [
         renderList("How to use this result", [
           "Position yourself around the top two lanes instead of claiming every lane equally.",
@@ -1536,17 +1570,22 @@ function renderResult() {
 
   scoreStack.innerHTML = ranked
     .map(
-      (type) => `
+      (type) => {
+        const scoreStart = Math.min(type.alignment, 50);
+        const scoreWidth = Math.abs(type.alignment - 50);
+
+        return `
         <div class="score-row">
           <div class="score-row__top">
             <span>${escapeHtml(type.name)}</span>
             <span>${type.alignment}/100</span>
           </div>
           <div class="score-row__bar" aria-hidden="true">
-            <span style="--score-width: ${type.alignment}%; --score-color: ${type.color}"></span>
+            <span style="--score-start: ${scoreStart}%; --score-width: ${scoreWidth}%; --score-color: ${type.color}"></span>
           </div>
         </div>
-      `,
+      `;
+      },
     )
     .join("");
 
