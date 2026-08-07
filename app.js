@@ -15,6 +15,7 @@ function byId(id) {
 }
 
 const introPanel = byId("intro-panel");
+const homeLink = byId("home-link");
 const quizCard = byId("quiz-card");
 const resultCard = byId("result-card");
 const typeGrid = byId("type-grid");
@@ -73,6 +74,7 @@ let typeSandboxAnimationFrame = null;
 let typeSandboxAnimationStart = null;
 let typeSandboxResumeTimer = null;
 let resolvedTypeSandboxProfiles = null;
+let homeSmokeTimer = null;
 
 function getSavedTheme() {
   try {
@@ -279,6 +281,46 @@ function show(element) {
 
 function hide(element) {
   element.hidden = true;
+}
+
+function setIntroCompact(compact) {
+  introPanel.classList.toggle("is-compact", compact);
+}
+
+function triggerHomeSmoke() {
+  window.clearTimeout(homeSmokeTimer);
+  homeLink.classList.remove("is-smoking");
+
+  if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
+    return;
+  }
+
+  // Restart the short sequence when Home is activated repeatedly.
+  void homeLink.offsetWidth;
+  homeLink.classList.add("is-smoking");
+  homeSmokeTimer = window.setTimeout(() => homeLink.classList.remove("is-smoking"), 700);
+}
+
+function navigateHome() {
+  hide(quizCard);
+  hide(resultCard);
+  show(introPanel);
+  setIntroCompact(false);
+  startTypeSandboxAnimation();
+
+  try {
+    window.history.replaceState(null, "", `${window.location.pathname}${window.location.search}`);
+  } catch {
+    // The in-page Home state still works when history updates are unavailable.
+  }
+
+  window.requestAnimationFrame(() => {
+    introPanel.scrollIntoView({
+      behavior: window.matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth",
+      block: "start",
+    });
+    triggerHomeSmoke();
+  });
 }
 
 function canUseMotion() {
@@ -1648,7 +1690,7 @@ function renderResult() {
 
 startButton.addEventListener("click", () => {
   stopTypeSandboxAnimation();
-  hide(introPanel);
+  setIntroCompact(true);
   hide(resultCard);
   show(quizCard);
   minimizeReferenceSections();
@@ -1693,9 +1735,19 @@ restartButton.addEventListener("click", () => {
   setSaveStatus("");
   hide(resultCard);
   show(introPanel);
+  setIntroCompact(false);
   startTypeSandboxAnimation();
   persistProgress();
   introPanel.scrollIntoView({ behavior: "smooth", block: "start" });
+});
+
+homeLink.addEventListener("click", (event) => {
+  if (event.button !== 0 || event.altKey || event.ctrlKey || event.metaKey || event.shiftKey) {
+    return;
+  }
+
+  event.preventDefault();
+  navigateHome();
 });
 
 typePreviewToggle.addEventListener("click", () => {
