@@ -818,7 +818,7 @@ function renderQuestion() {
   questionNumber.textContent = String(currentQuestion);
   questionTotal.textContent = String(config.questions.length);
   questionText.textContent = question.prompt;
-  progressBar.style.width = `${(currentQuestion / config.questions.length) * 100}%`;
+  progressBar.style.setProperty("--progress-ratio", String(currentQuestion / config.questions.length));
   questionProgress.setAttribute("aria-valuemax", String(config.questions.length));
   questionProgress.setAttribute("aria-valuenow", String(currentQuestion));
   questionProgress.setAttribute("aria-valuetext", `Question ${currentQuestion} of ${config.questions.length}`);
