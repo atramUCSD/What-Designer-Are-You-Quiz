@@ -811,15 +811,43 @@ h2 {
 }
 
 .designer-badge {
+  --badge-ink: #17242b;
+  --badge-outline: var(--badge-ink);
+  --badge-meter: var(--badge-ink);
   min-height: 132px;
   display: flex;
   gap: 14px;
   padding: 14px;
-  border: 1px solid color-mix(in srgb, var(--badge-color) 34%, var(--line));
+  border: 1px solid var(--badge-outline);
   background:
     linear-gradient(135deg, color-mix(in srgb, var(--badge-color) 13%, white), #ffffff 48%),
     #ffffff;
   break-inside: avoid;
+}
+
+.designer-badge--bronze {
+  --badge-ink: #7a4526;
+  --badge-outline: #7a4526;
+  --badge-meter: #7a4526;
+}
+
+.designer-badge--silver {
+  --badge-ink: #4b5563;
+  --badge-outline: #4b5563;
+  --badge-meter: #4b5563;
+}
+
+.designer-badge--gold {
+  --badge-ink: #765410;
+  --badge-outline: #765410;
+  --badge-meter: #765410;
+}
+
+.designer-badge--rainbow {
+  --badge-ink: #6842a8;
+  --badge-outline: #6842a8;
+  --badge-meter: #6842a8;
+  --rainbow-meter: linear-gradient(90deg, #b42318, #8a6116, #18794e, #1d5fa7, #6842a8, #9c2f65);
 }
 
 .designer-badge__icon {
@@ -828,9 +856,9 @@ h2 {
   flex: 0 0 48px;
   display: grid;
   place-items: center;
-  border: 2px solid var(--badge-color);
+  border: 2px solid var(--badge-outline);
   border-radius: 50%;
-  color: var(--badge-color);
+  color: var(--badge-ink);
   background: #ffffff;
   font-size: 20px;
   font-weight: 900;
@@ -860,8 +888,8 @@ h2 {
 .designer-badge__top span {
   flex: 0 0 auto;
   padding: 4px 7px;
-  border: 1px solid var(--badge-color);
-  color: var(--badge-color);
+  border: 1px solid var(--badge-outline);
+  color: var(--badge-ink);
   background: #ffffff;
   font-size: 11px;
   font-weight: 900;
@@ -887,13 +915,13 @@ h2 {
   display: block;
   width: var(--badge-score);
   height: 100%;
-  background: var(--badge-color);
+  background: var(--badge-meter);
 }
 
 .designer-badge--rainbow {
   position: relative;
   overflow: hidden;
-  border-color: #8b5cf6;
+  border-color: var(--badge-outline);
 }
 
 .designer-badge--rainbow::before {
@@ -901,11 +929,11 @@ h2 {
   position: absolute;
   inset: 0 0 auto;
   height: 4px;
-  background: linear-gradient(90deg, #e5484d, #d29b2f, #2f9e6f, #2f7ed8, #8b5cf6, #cc4f8b);
+  background: var(--rainbow-meter);
 }
 
 .designer-badge--rainbow .designer-badge__meter span {
-  background: linear-gradient(90deg, #e5484d, #d29b2f, #2f9e6f, #2f7ed8, #8b5cf6, #cc4f8b);
+  background: var(--rainbow-meter);
 }
 
 .result-company-section {
@@ -1623,6 +1651,31 @@ html[data-theme="dark"] .designer-badge__meter {
   background: #304047;
 }
 
+html[data-theme="dark"] .designer-badge--bronze {
+  --badge-ink: #e4a477;
+  --badge-outline: #e4a477;
+  --badge-meter: #e4a477;
+}
+
+html[data-theme="dark"] .designer-badge--silver {
+  --badge-ink: #d0d5dd;
+  --badge-outline: #d0d5dd;
+  --badge-meter: #d0d5dd;
+}
+
+html[data-theme="dark"] .designer-badge--gold {
+  --badge-ink: #f2c94c;
+  --badge-outline: #f2c94c;
+  --badge-meter: #f2c94c;
+}
+
+html[data-theme="dark"] .designer-badge--rainbow {
+  --badge-ink: #c4b5fd;
+  --badge-outline: #c4b5fd;
+  --badge-meter: #c4b5fd;
+  --rainbow-meter: linear-gradient(90deg, #ff8a80, #ffd166, #6ee7a8, #7db8ff, #c4b5fd, #f0a1c2);
+}
+
 html[data-theme="dark"] .career-opportunities-intro,
 html[data-theme="dark"] .company-logo-frame,
 html[data-theme="dark"] .badge-signal-chip {
@@ -1658,12 +1711,14 @@ html[data-theme="dark"] .result-radar-chart__point {
 }
 
 html[data-theme="dark"] .designer-badge__top span {
-  color: var(--ink);
+  color: var(--badge-ink);
+  border-color: var(--badge-outline);
   background: var(--surface-subtle);
 }
 
 html[data-theme="dark"] .designer-badge__icon {
-  color: var(--ink);
+  color: var(--badge-ink);
+  border-color: var(--badge-outline);
   background: var(--panel);
 }
 
@@ -2476,6 +2531,17 @@ h4,
 
 .designer-badge__meter span {
   transform-origin: left center;
+}
+
+/* Tier foregrounds must win over shared card and chip color rules. */
+.designer-badge[class*="designer-badge--"] {
+  border-color: var(--badge-outline);
+}
+
+.designer-badge[class*="designer-badge--"] .designer-badge__icon,
+.designer-badge[class*="designer-badge--"] .designer-badge__top span {
+  color: var(--badge-ink);
+  border-color: var(--badge-outline);
 }
 
 .section-toggle {
