@@ -5,10 +5,13 @@ Static GitHub Pages design-career reflection tool for people exploring design, b
 ## Local development
 
 ```bash
+npm install
 npm start
 ```
 
 Then open `http://localhost:4300/`. You can also run the server directly with `node serve-local.mjs`.
+
+The application has no compile step. GitHub Pages serves `index.html`, `styles.css`, `questions.js`, `app.js`, and the local files under `assets/` directly.
 
 ## Validate before pushing
 
@@ -22,7 +25,7 @@ This checks JavaScript syntax and runs the deterministic scoring-model audit. Ru
 
 - Uses seven primary outcomes: Product Designer, UX Designer, Interaction Designer, UX Researcher, Design Engineer / UI Engineer, Human Factors Engineer, and UX Writer / Content Designer.
 - Retains systems thinking as a cross-cutting dimension instead of a standalone result.
-- Uses 23 balanced bipolar tradeoffs and seven narrow behavioral anchors.
+- Uses 13 balanced bipolar tradeoffs and seven narrow behavioral anchors.
 - Keeps seven explicit role vectors and seven explicit dimension vectors in `questions.js`.
 - Uses centered, linear relative-fit scoring so every displayed shift can be traced to a visible choice.
 - Supports primary, blended, rounded, and strong-secondary result handling.
@@ -51,7 +54,7 @@ Anchors use the same five positions from `Not characteristic` to `Highly charact
 5 = 1
 ```
 
-For each tradeoff, A contributes `-3` to its signed role vector and B contributes `+3`. The answer direction makes the selected role's evidence positive and the alternative role's evidence negative. Anchors contribute `+3` only to their target role and use a `0.75` multiplier.
+The clearest, most diagnostic tradeoffs contribute `-4` to role A and `+4` to role B. Five more context-dependent comparisons use `-3` and `+3`. The answer direction makes the selected role's evidence positive and the alternative role's evidence negative. Anchors contribute `+3` only to their target role and use a `0.75` multiplier. Per-role normalization accounts for different question counts and weights.
 
 Scores are normalized linearly around 50. Below 50 means the answers favored other paths, not that the respondent lacks the skill. An all-middle run returns "No clear designer lean."
 
@@ -60,6 +63,7 @@ Scores are normalized linearly around 50. Below 50 means the answers favored oth
 The question format and role constructs were informed by:
 
 - [Pew Research Center: Writing Survey Questions](https://www.pewresearch.org/writing-survey-questions/) on acquiescence and alternative-statement formats
+- [Digital.gov: Plain Language Guide Series](https://www.plainlanguage.gov/guidelines/) on audience-specific, understandable public content
 - [Brown and Maydeu-Olivares: Item Response Modeling of Forced-Choice Questionnaires](https://doi.org/10.1177/0013164410375112) on forced-choice benefits and ipsative limitations
 - [O*NET Web and Digital Interface Designers](https://www.onetonline.org/link/summary/15-1255.00)
 - [O*NET Human Factors Engineers and Ergonomists](https://www.onetonline.org/link/summary/17-2112.01)
@@ -67,7 +71,7 @@ The question format and role constructs were informed by:
 - [GitLab Product Designer job family](https://handbook.gitlab.com/job-description-library/product/product-designer/)
 - [Vercel Design Engineering](https://vercel.com/blog/design-engineering-at-vercel)
 
-These sources support the constructs and relative-choice format; they do not validate the quiz's numerical weights. Results compare preferences within one response profile and must not be compared as ability scores between people.
+The 20-question set uses familiar action language first and specialized terms only where they clarify a real practice. Each role has one behavioral anchor and appears in three or four tradeoffs. These sources support the constructs and relative-choice format; they do not validate the quiz's numerical weights. Results compare preferences within one response profile and must not be compared as ability scores between people.
 
 ## Result visualization
 
@@ -78,6 +82,35 @@ The result uses a static SVG radar based on relative dimension signals. It inten
 Badges are configurable sub-signals derived from role, dimension, question, and computed scores. A badge must clear both an evidence floor and a meaningful relative lift. Bronze, Silver, Gold, and Rainbow begin at 60, 70, 80, and 87 respectively. Results show at most four badges.
 
 The home page includes a config-driven badge glossary showing each badge's description and contributing signals without exposing internal weights.
+
+## Community comparison
+
+After completing the quiz, a respondent can optionally publish an alias, result type, normalized role and dimension scores, and up to four earned badges. Individual question answers are not submitted. Comparisons include only responses with the current `questionSetVersion` and show aggregate distributions rather than a ranked leaderboard.
+
+The SheetDB endpoint is configured under `communityResults` in `questions.js`. The client verifies the expected spreadsheet columns before writing. The current integration requires only these SheetDB permissions:
+
+- Read (GET): enabled
+- Create (POST): enabled
+- Search, Update, and Delete: disabled
+- Authentication: none while requests are sent directly from the static browser client
+- IP whitelist: disabled because respondents use varying public IP addresses
+
+Restrict CORS to active browser origins. Development uses `http://localhost:4300` and optionally `http://127.0.0.1:4300`. The GitHub Pages origin is `https://atramucsd.github.io`; repository paths are not part of a CORS origin. Add that production origin before enabling public submissions from GitHub Pages.
+
+The spreadsheet contract is 31 columns in this exact order:
+
+```text
+schema_version submission_id submitted_at_utc question_set_version
+public_alias consent_public result_mode primary_type secondary_type
+role_product role_ux role_interaction role_research role_technology
+role_human_factors role_content dimension_strategy
+dimension_experience_design dimension_research dimension_systems
+dimension_build dimension_human_factors dimension_content
+badge_1_id badge_1_tier badge_2_id badge_2_tier badge_3_id
+badge_3_tier badge_4_id badge_4_tier
+```
+
+Google Sheets may normalize the submitted string `true` to `TRUE`. Treat consent values case-insensitively when auditing. Because the endpoint and POST capability are visible to every visitor, CORS and reduced permissions limit accidental browser access but do not prevent scripted spam. Use a validating, rate-limited serverless proxy before treating the dataset as abuse-resistant.
 
 ## Visual assets, themes, and contrast
 
@@ -93,15 +126,33 @@ Outcome previews and result guidance link to organization career pages so people
 
 ## Deployment
 
-For a root deployment from `main`:
+The source branch is `main`; the public GitHub Pages branch is `gh-pages`. Validate and commit source changes first:
 
 ```bash
-git add app.js index.html questions.js styles.css README.md package.json scripts/audit-scoring.mjs
-git commit -m "Redesign quiz around relative career fit"
+npm run check
+git add <changed-files>
+git commit -m "Describe the change"
 git push origin main
 ```
 
-If GitHub Pages publishes from `gh-pages`, mirror the same files there after committing `main`.
+Then mirror the committed site files to `gh-pages`, validate, and push that branch. Do not copy local-only notes, temporary audits, archives, or `node_modules` into the deployment branch. The expected public URL is:
+
+```text
+https://atramucsd.github.io/What-Designer-Are-You-Quiz/
+```
+
+The tracked `.nojekyll` file keeps GitHub Pages from applying Jekyll processing.
+
+## Repository map
+
+- `questions.js`: versioned quiz configuration, outcomes, questions, scoring metadata, badges, organizations, and SheetDB settings
+- `app.js`: state, scoring, rendering, persistence, exports, community submission, and interactions
+- `index.html`: semantic application structure and result/community containers
+- `styles.css`: responsive themes, layout, components, print output, and reduced-motion behavior
+- `scripts/audit-scoring.mjs`: deterministic structural, archetype, balance, and Monte Carlo scoring checks
+- `serve-local.mjs`: dependency-free local static server on port 4300
+- `assets/`: self-hosted fonts, vendor runtime, licenses, and company logos
+- `CLAUDE.md`: implementation and handoff contract for AI-assisted development
 
 ## Caveat
 

@@ -114,9 +114,9 @@
           role="progressbar"
           aria-label="Quiz progress"
           aria-valuemin="1"
-          aria-valuemax="30"
+          aria-valuemax="20"
           aria-valuenow="1"
-          aria-valuetext="Question 1 of 30"
+          aria-valuetext="Question 1 of 20"
         >
           <span id="progress-bar"></span>
         </div>
@@ -194,6 +194,42 @@
           <div class="score-stack" id="score-stack" aria-label="Type score comparison"></div>
         </aside>
       </div>
+
+      <section class="community-results" id="community-results" aria-labelledby="community-results-title">
+        <div class="community-results__heading">
+          <p class="eyebrow">Community comparison</p>
+          <h3 id="community-results-title">See how your profile compares.</h3>
+          <p>Optionally publish this result under a display name, then compare it with other responses from the same quiz version.</p>
+        </div>
+
+        <form class="community-results__form" id="community-results-form" novalidate>
+          <label class="community-results__field" for="community-alias">
+            <span>Public display name <small>optional</small></span>
+            <input
+              id="community-alias"
+              name="public_alias"
+              type="text"
+              maxlength="32"
+              autocomplete="nickname"
+              placeholder="Anonymous"
+            >
+          </label>
+
+          <button class="button button--primary" id="community-submit-button" type="submit">
+            <svg class="command-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v12"></path><path d="m7 8 5-5 5 5"></path><path d="M5 13v6a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-6"></path></svg>
+            <span id="community-submit-label">Share and compare</span>
+          </button>
+
+          <label class="community-results__consent">
+            <input id="community-consent" type="checkbox" required>
+            <span>I agree to publish my display name, result type, normalized scores, and badges. Individual quiz answers are not stored.</span>
+          </label>
+        </form>
+
+        <p class="community-results__privacy">Use an alias rather than an email address or other identifying information.</p>
+        <p class="community-results__status" id="community-results-status" role="status" aria-live="polite"></p>
+        <div class="community-results__comparison" id="community-results-comparison" hidden></div>
+      </section>
     </section>
 
     <section class="type-preview" id="type-preview">

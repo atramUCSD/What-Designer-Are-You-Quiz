@@ -44,6 +44,14 @@ const resultRadar = byId("result-radar");
 const badgePanel = byId("badge-panel");
 const dimensionSummary = byId("dimension-summary");
 const nextSteps = byId("next-steps");
+const communityResults = byId("community-results");
+const communityResultsForm = byId("community-results-form");
+const communityAlias = byId("community-alias");
+const communityConsent = byId("community-consent");
+const communitySubmitButton = byId("community-submit-button");
+const communitySubmitLabel = byId("community-submit-label");
+const communityResultsStatus = byId("community-results-status");
+const communityResultsComparison = byId("community-results-comparison");
 const badgeGlossaryGrid = document.getElementById("badge-glossary-grid");
 const badgeGlossaryLevels = document.getElementById("badge-glossary-levels");
 const typePreviewToggle = byId("type-preview-toggle");
@@ -59,6 +67,60 @@ const typeSandboxReadout = byId("type-sandbox-readout");
 
 const STORAGE_KEY = "what-designer-are-you-progress";
 const THEME_STORAGE_KEY = "what-designer-are-you-theme";
+const COMMUNITY_RESULTS_ENDPOINT = String(config.communityResults?.endpoint ?? "").replace(/\/$/, "");
+const COMMUNITY_SCHEMA_VERSION = String(config.communityResults?.schemaVersion ?? "1");
+const COMMUNITY_ALIAS_MAX_LENGTH = clamp(config.communityResults?.maxPublicAliasLength ?? 32, 1, 64);
+const COMMUNITY_COLUMNS = [
+  "schema_version",
+  "submission_id",
+  "submitted_at_utc",
+  "question_set_version",
+  "public_alias",
+  "consent_public",
+  "result_mode",
+  "primary_type",
+  "secondary_type",
+  "role_product",
+  "role_ux",
+  "role_interaction",
+  "role_research",
+  "role_technology",
+  "role_human_factors",
+  "role_content",
+  "dimension_strategy",
+  "dimension_experience_design",
+  "dimension_research",
+  "dimension_systems",
+  "dimension_build",
+  "dimension_human_factors",
+  "dimension_content",
+  "badge_1_id",
+  "badge_1_tier",
+  "badge_2_id",
+  "badge_2_tier",
+  "badge_3_id",
+  "badge_3_tier",
+  "badge_4_id",
+  "badge_4_tier",
+];
+const COMMUNITY_ROLE_COLUMNS = {
+  product: "role_product",
+  ux: "role_ux",
+  interaction: "role_interaction",
+  research: "role_research",
+  technology: "role_technology",
+  humanFactors: "role_human_factors",
+  content: "role_content",
+};
+const COMMUNITY_DIMENSION_COLUMNS = {
+  strategy: "dimension_strategy",
+  experienceDesign: "dimension_experience_design",
+  research: "dimension_research",
+  systems: "dimension_systems",
+  build: "dimension_build",
+  humanFactors: "dimension_human_factors",
+  content: "dimension_content",
+};
 const TYPE_SANDBOX_DURATION = 18000;
 const TYPE_SANDBOX_PROFILES = [
   { id: "research", shortName: "Research", fallbackName: "UX Researcher", x: 18, y: 21, fallbackColor: "#3b79b7" },
@@ -258,7 +320,12 @@ const state = {
   index: savedProgress?.index ?? 0,
   answers: savedProgress?.answers ?? Array(config.questions.length).fill(null),
   resultFileBase: "designer-type-result",
+  latestResult: null,
+  communitySubmitted: false,
+  communitySubmissionId: null,
 };
+
+communityAlias.maxLength = COMMUNITY_ALIAS_MAX_LENGTH;
 
 function persistProgress() {
   try {
@@ -351,6 +418,7 @@ function animateResultEntry() {
     dimensionSummary,
     nextSteps,
     resultCard.querySelector(".score-panel"),
+    communityResults,
     resultCard.querySelector(".result-actions"),
   ].filter(Boolean);
 
@@ -452,6 +520,275 @@ function setSaveStatus(message, isError = false) {
 function setButtonBusy(button, isBusy) {
   button.disabled = isBusy;
   button.setAttribute("aria-busy", String(isBusy));
+}
+
+function createSubmissionId() {
+  if (typeof window.crypto?.randomUUID === "function") {
+    return window.crypto.randomUUID();
+  }
+
+  return `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 12)}`;
+}
+
+function setCommunityStatus(message, tone = "") {
+  communityResultsStatus.textContent = message;
+  communityResultsStatus.classList.toggle("community-results__status--error", tone === "error");
+  communityResultsStatus.classList.toggle("community-results__status--success", tone === "success");
+}
+
+function resetCommunityResults() {
+  communityResultsForm.reset();
+  communityAlias.disabled = false;
+  communityConsent.disabled = false;
+  communitySubmitButton.disabled = false;
+  communitySubmitButton.setAttribute("aria-busy", "false");
+  communitySubmitLabel.textContent = "Share and compare";
+  communityResultsComparison.hidden = true;
+  communityResultsComparison.innerHTML = "";
+  setCommunityStatus("");
+  state.communitySubmitted = false;
+  state.communitySubmissionId = createSubmissionId();
+}
+
+function getPublicAlias() {
+  const alias = communityAlias.value.trim().replace(/\s+/g, " ");
+
+  if (!alias) {
+    return "Anonymous";
+  }
+
+  if (alias.length > COMMUNITY_ALIAS_MAX_LENGTH) {
+    throw new Error(`Use ${COMMUNITY_ALIAS_MAX_LENGTH} characters or fewer for your display name.`);
+  }
+
+  if (/^[=+\-@]/.test(alias) || /[^\p{L}\p{N} ._'’-]/u.test(alias)) {
+    throw new Error("Use letters, numbers, spaces, periods, apostrophes, underscores, or hyphens only.");
+  }
+
+  return alias;
+}
+
+function getCommunityResultMode(result) {
+  if (result.isFullyNeutral) return "neutral";
+  if (result.roundedProfile.isRounded) return "rounded";
+  return result.resultLabel.mode;
+}
+
+function buildCommunityRecord(result, publicAlias) {
+  const record = Object.fromEntries(COMMUNITY_COLUMNS.map((column) => [column, ""]));
+  const shouldStoreSecondary = result.roundedProfile.isRounded || result.resultLabel.showSecondary;
+
+  record.schema_version = COMMUNITY_SCHEMA_VERSION;
+  record.submission_id = state.communitySubmissionId;
+  record.submitted_at_utc = new Date().toISOString();
+  record.question_set_version = config.questionSetVersion;
+  record.public_alias = publicAlias;
+  record.consent_public = "true";
+  record.result_mode = getCommunityResultMode(result);
+  record.primary_type = result.isFullyNeutral ? "" : result.primaryType.id;
+  record.secondary_type = !result.isFullyNeutral && shouldStoreSecondary ? result.secondaryType?.id ?? "" : "";
+
+  result.ranked.forEach((type) => {
+    const column = COMMUNITY_ROLE_COLUMNS[type.id];
+    if (column) record[column] = String(type.alignment);
+  });
+
+  result.dimensions.forEach((dimension) => {
+    const column = COMMUNITY_DIMENSION_COLUMNS[dimension.id];
+    if (column) record[column] = String(dimension.alignment);
+  });
+
+  result.badges.slice(0, 4).forEach((badge, index) => {
+    const position = index + 1;
+    record[`badge_${position}_id`] = badge.id;
+    record[`badge_${position}_tier`] = badge.level.id;
+  });
+
+  return record;
+}
+
+async function verifyCommunitySchema() {
+  const response = await fetchCommunity(`${COMMUNITY_RESULTS_ENDPOINT}/keys`, {
+    headers: { Accept: "application/json" },
+  });
+
+  if (!response.ok) {
+    throw new Error("The community comparison service is unavailable. Try again later.");
+  }
+
+  const keys = await response.json();
+  const missingColumns = COMMUNITY_COLUMNS.filter((column) => !keys.includes(column));
+
+  if (missingColumns.length) {
+    throw new Error("Community comparison is still being configured. The spreadsheet headers need to be split into separate columns.");
+  }
+}
+
+async function fetchCommunity(url, options = {}) {
+  const controller = new AbortController();
+  const timeout = window.setTimeout(() => controller.abort(), 10000);
+
+  try {
+    return await fetch(url, { ...options, signal: controller.signal });
+  } catch (error) {
+    if (error?.name === "AbortError") {
+      throw new Error("The community comparison service took too long to respond. Try again.");
+    }
+
+    throw new Error("The community comparison service is unavailable. Check your connection and try again.");
+  } finally {
+    window.clearTimeout(timeout);
+  }
+}
+
+async function postCommunityRecord(record) {
+  const response = await fetchCommunity(COMMUNITY_RESULTS_ENDPOINT, {
+    method: "POST",
+    headers: {
+      Accept: "application/json",
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({ data: [record] }),
+  });
+
+  if (!response.ok) {
+    throw new Error(response.status === 429 ? "Too many submissions. Try again in a moment." : "Your result could not be shared. Try again.");
+  }
+}
+
+async function fetchCommunityRows() {
+  const url = new URL(COMMUNITY_RESULTS_ENDPOINT);
+  url.searchParams.set("limit", "1000");
+  const response = await fetchCommunity(url, { headers: { Accept: "application/json" } });
+
+  if (!response.ok) {
+    throw new Error("Your result was shared, but the comparison could not be loaded.");
+  }
+
+  const rows = await response.json();
+  return Array.isArray(rows) ? rows : [];
+}
+
+function parseCommunityScore(value) {
+  const score = Number.parseFloat(value);
+  return Number.isFinite(score) ? clamp(score, 0, 100) : null;
+}
+
+function renderCommunityComparison(rows, result) {
+  const currentRows = rows.filter((row) => row.question_set_version === config.questionSetVersion);
+  const primaryCounts = Object.fromEntries(config.types.map((type) => [type.id, 0]));
+
+  currentRows.forEach((row) => {
+    if (Object.hasOwn(primaryCounts, row.primary_type)) {
+      primaryCounts[row.primary_type] += 1;
+    }
+  });
+
+  const recordedPrimaryCount = Object.values(primaryCounts).reduce((sum, count) => sum + count, 0);
+  const mostCommonType = config.types
+    .map((type) => ({ ...type, count: primaryCounts[type.id] }))
+    .sort((first, second) => second.count - first.count || first.name.localeCompare(second.name))[0];
+  const currentType = result.isFullyNeutral ? null : result.primaryType;
+  const currentTypeCount = currentType ? primaryCounts[currentType.id] : 0;
+  const currentTypeShare = recordedPrimaryCount ? Math.round((currentTypeCount / recordedPrimaryCount) * 100) : 0;
+  const currentRoleColumn = currentType ? COMMUNITY_ROLE_COLUMNS[currentType.id] : null;
+  const peerScores = currentRoleColumn
+    ? currentRows.map((row) => parseCommunityScore(row[currentRoleColumn])).filter(Number.isFinite)
+    : [];
+  const currentRoleScore = currentType?.alignment ?? null;
+  const percentile = peerScores.length
+    ? Math.round((peerScores.filter((score) => score <= currentRoleScore).length / peerScores.length) * 100)
+    : null;
+  const earlySample = currentRows.length < 5;
+
+  const distributionMarkup = config.types
+    .map((type) => {
+      const count = primaryCounts[type.id];
+      const percentage = recordedPrimaryCount ? Math.round((count / recordedPrimaryCount) * 100) : 0;
+
+      return `
+        <div class="community-distribution__row">
+          <div><span>${escapeHtml(type.name)}</span><strong>${count}</strong></div>
+          <div class="community-distribution__bar" aria-hidden="true">
+            <span style="--community-share: ${percentage}%; --community-color: ${escapeHtml(type.color)}"></span>
+          </div>
+          <small>${percentage}%</small>
+        </div>
+      `;
+    })
+    .join("");
+
+  communityResultsComparison.innerHTML = `
+    <h4>Current quiz-version comparison</h4>
+    <div class="community-results__summary">
+      <div><strong>${currentRows.length}</strong><span>Recorded responses</span></div>
+      <div>
+        <strong>${currentType ? `${currentTypeShare}%` : "--"}</strong>
+        <span>${currentType ? `Share with ${escapeHtml(currentType.name)} as the primary result` : "No primary result recorded"}</span>
+      </div>
+      <div>
+        <strong>${percentile === null || earlySample ? "Early" : `${percentile}th`}</strong>
+        <span>${earlySample ? "Sample size is still developing" : `Percentile for ${escapeHtml(currentType.name)} relative fit`}</span>
+      </div>
+    </div>
+    <div class="community-distribution" aria-label="Primary result distribution">
+      <div class="community-distribution__heading">
+        <h5>Primary result distribution</h5>
+        <p>${recordedPrimaryCount ? `Most common: ${escapeHtml(mostCommonType.name)}` : "No primary results recorded yet."}</p>
+      </div>
+      ${distributionMarkup}
+    </div>
+    <p class="community-results__caveat">This comparison describes this voluntary sample, not the broader design community or professional ability.</p>
+  `;
+  communityResultsComparison.hidden = false;
+}
+
+async function submitCommunityResult(event) {
+  event.preventDefault();
+
+  if (state.communitySubmitted || !state.latestResult) {
+    return;
+  }
+
+  try {
+    const publicAlias = getPublicAlias();
+
+    if (!communityConsent.checked) {
+      throw new Error("Confirm the publishing agreement before sharing your result.");
+    }
+
+    if (!COMMUNITY_RESULTS_ENDPOINT) {
+      throw new Error("Community comparison has not been configured.");
+    }
+
+    setButtonBusy(communitySubmitButton, true);
+    setCommunityStatus("Checking the comparison service...");
+    await verifyCommunitySchema();
+
+    setCommunityStatus("Sharing your result...");
+    const record = buildCommunityRecord(state.latestResult, publicAlias);
+    await postCommunityRecord(record);
+
+    state.communitySubmitted = true;
+    communityAlias.disabled = true;
+    communityConsent.disabled = true;
+    communitySubmitLabel.textContent = "Result shared";
+    setCommunityStatus("Your result is published. Loading the comparison...", "success");
+
+    const rows = await fetchCommunityRows();
+    renderCommunityComparison(rows, state.latestResult);
+    setCommunityStatus("Your result is published and included below.", "success");
+  } catch (error) {
+    console.error(error);
+    setCommunityStatus(error instanceof Error ? error.message : "Your result could not be shared. Try again.", "error");
+
+    if (state.communitySubmitted) {
+      communitySubmitButton.disabled = true;
+      communitySubmitButton.setAttribute("aria-busy", "false");
+    } else {
+      setButtonBusy(communitySubmitButton, false);
+    }
+  }
 }
 
 function getDimension(id) {
@@ -813,7 +1150,10 @@ function renderScale() {
   const questionKind = getQuestionKind(question);
   const selected = state.answers[state.index];
   const scale = config.scales?.[questionKind] ?? config.scale ?? [];
-  const legend = questionKind === "tradeoff" ? "Which option would you prioritize?" : "How characteristic is this of you?";
+  const legend =
+    questionKind === "tradeoff"
+      ? "Which would you prioritize first? Both options can be valid."
+      : "How characteristic is this of you?";
   const poles =
     questionKind === "tradeoff"
       ? `
@@ -1416,6 +1756,7 @@ function buildResultExportClone() {
 
   clone.querySelector(".result-actions")?.remove();
   clone.querySelector(".save-status")?.remove();
+  clone.querySelector(".community-results")?.remove();
   clone.style.width = "100%";
   clone.style.margin = "0";
   clone.style.boxShadow = "none";
@@ -1529,6 +1870,7 @@ async function saveResultImage() {
 }
 
 function renderResult() {
+  const result = calculateScores();
   const {
     ranked,
     dimensions,
@@ -1539,7 +1881,9 @@ function renderResult() {
     roundedProfile,
     isFullyNeutral,
     isLowDifferentiation,
-  } = calculateScores();
+  } = result;
+  state.latestResult = result;
+  resetCommunityResults();
   const topDimensions = dimensions.slice(0, 3);
   const topDimensionIds = topDimensions.map((dimension) => dimension.id);
   const systemsDimension = dimensions.find((dimension) => dimension.id === "systems");
@@ -1732,6 +2076,8 @@ nextButton.addEventListener("click", () => {
 restartButton.addEventListener("click", () => {
   state.index = 0;
   state.answers = Array(config.questions.length).fill(null);
+  state.latestResult = null;
+  resetCommunityResults();
   setSaveStatus("");
   hide(resultCard);
   show(introPanel);
@@ -1740,6 +2086,8 @@ restartButton.addEventListener("click", () => {
   persistProgress();
   introPanel.scrollIntoView({ behavior: "smooth", block: "start" });
 });
+
+communityResultsForm.addEventListener("submit", submitCommunityResult);
 
 homeLink.addEventListener("click", (event) => {
   if (event.button !== 0 || event.altKey || event.ctrlKey || event.metaKey || event.shiftKey) {
