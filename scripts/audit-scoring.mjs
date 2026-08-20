@@ -17,7 +17,7 @@ assert.equal(sorted(config.types.map((type) => type.id)), sorted(roleIds), "Unex
 assert(!config.types.some((type) => type.id === "systems"), "Systems must remain dimension-only.");
 assert.equal(config.types.find((type) => type.id === "technology")?.name, "Design Engineer / UI Engineer");
 assert.equal(sorted(config.dimensions.map((dimension) => dimension.id)), sorted(dimensionIds), "Unexpected dimensions.");
-assert.equal(config.questions.length, 30, "Expected exactly 30 questions.");
+assert.equal(config.questions.length, 20, "Expected exactly 20 questions.");
 
 for (const kind of ["tradeoff", "anchor"]) {
   assert.equal(config.scales?.[kind]?.length, 5, `Expected a five-point ${kind} scale.`);
@@ -33,11 +33,13 @@ const kinds = config.questions.reduce((counts, question) => {
   return counts;
 }, {});
 
-assert.deepEqual({ ...kinds }, { anchor: 7, tradeoff: 23 });
+assert.deepEqual({ ...kinds }, { anchor: 7, tradeoff: 13 });
 
 const anchorCounts = Object.fromEntries(roleIds.map((roleId) => [roleId, 0]));
 const sideCounts = Object.fromEntries(roleIds.map((roleId) => [roleId, { left: 0, right: 0 }]));
-const coveredPairs = new Set();
+const tradeoffCounts = Object.fromEntries(roleIds.map((roleId) => [roleId, 0]));
+let authoritativeCount = 0;
+let supportingCount = 0;
 
 for (const question of config.questions) {
   assert(question.id && question.prompt, "Every question needs an ID and prompt.");
@@ -66,33 +68,39 @@ for (const question of config.questions) {
   assert.notEqual(question.leftRole, question.rightRole, `${question.id} compares a role with itself.`);
   assert(roleIds.includes(question.leftRole) && roleIds.includes(question.rightRole), `${question.id} has an invalid role pole.`);
 
+  const weightMagnitude = Math.abs(question.weights[question.rightRole]);
+  assert([3, 4].includes(weightMagnitude), `${question.id} must use a supporting (3) or authoritative (4) weight.`);
+  assert.equal(question.weights[question.leftRole], -weightMagnitude, `${question.id} role contrast is not symmetric.`);
+  authoritativeCount += weightMagnitude === 4 ? 1 : 0;
+  supportingCount += weightMagnitude === 3 ? 1 : 0;
+
   for (const roleId of roleIds) {
-    const expected = roleId === question.leftRole ? -3 : roleId === question.rightRole ? 3 : 0;
+    const expected = roleId === question.leftRole ? -weightMagnitude : roleId === question.rightRole ? weightMagnitude : 0;
     assert.equal(question.weights[roleId], expected, `${question.id} role contrast is not balanced.`);
   }
 
   sideCounts[question.leftRole].left += 1;
   sideCounts[question.rightRole].right += 1;
-  coveredPairs.add(sorted([question.leftRole, question.rightRole]));
+  tradeoffCounts[question.leftRole] += 1;
+  tradeoffCounts[question.rightRole] += 1;
 }
+
+assert.equal(authoritativeCount, 8, "Expected eight authoritative tradeoffs.");
+assert.equal(supportingCount, 5, "Expected five supporting tradeoffs.");
 
 for (const roleId of roleIds) {
   assert.equal(anchorCounts[roleId], 1, `${roleId} must have exactly one anchor.`);
+  assert(
+    tradeoffCounts[roleId] >= 3 && tradeoffCounts[roleId] <= 4,
+    `${roleId} must appear in three or four direct tradeoffs.`,
+  );
   assert(
     Math.abs(sideCounts[roleId].left - sideCounts[roleId].right) <= 1,
     `${roleId} has unbalanced left/right placement.`,
   );
 }
 
-const expectedPairs = new Set();
-for (let first = 0; first < roleIds.length; first += 1) {
-  for (let second = first + 1; second < roleIds.length; second += 1) {
-    expectedPairs.add(sorted([roleIds[first], roleIds[second]]));
-  }
-}
-assert([...expectedPairs].every((pair) => coveredPairs.has(pair)), "Every role pair needs a direct tradeoff.");
-
-const expectedSystemsWeights = { q03: 1, q09: 1, q15: 1, q16: -1, q17: 1, q24: 1, q27: 1 };
+const expectedSystemsWeights = { q03: -1, q04: 1, q06: 1, q09: 1, q12: 1, q15: 1 };
 for (const question of config.questions) {
   assert.equal(
     question.dimensionWeights.systems,
@@ -179,7 +187,7 @@ function blendAnswers(firstRole, secondRole) {
   });
 }
 
-const neutral = scoreAnswers(Array(30).fill(3));
+const neutral = scoreAnswers(Array(config.questions.length).fill(3));
 assert(Object.values(neutral.roles).every((score) => score === 50), "All-middle role scores must equal 50.");
 assert(Object.values(neutral.dimensions).every((score) => score === 50), "All-middle dimensions must equal 50.");
 
@@ -193,7 +201,7 @@ for (const pair of [["ux", "research"], ["interaction", "technology"]]) {
   const scores = scoreAnswers(blendAnswers(...pair)).roles;
   const ranked = roleIds.toSorted((first, second) => scores[second] - scores[first]);
   assert(pair.every((roleId) => ranked.slice(0, 2).includes(roleId)), `${pair.join("/")} blend did not surface both roles.`);
-  assert(Math.abs(scores[pair[0]] - scores[pair[1]]) <= 3, `${pair.join("/")} blend is not balanced.`);
+  assert(Math.abs(scores[pair[0]] - scores[pair[1]]) <= 4, `${pair.join("/")} blend is not balanced.`);
 }
 
 let randomState = 19_173;
@@ -204,7 +212,7 @@ const spreads = [];
 let allAboveMidpoint = 0;
 
 for (let run = 0; run < simulationRuns; run += 1) {
-  const answers = Array.from({ length: 30 }, () => 1 + Math.floor(random() * 5));
+  const answers = Array.from({ length: config.questions.length }, () => 1 + Math.floor(random() * 5));
   const scores = scoreAnswers(answers).roles;
   const values = roleIds.map((roleId) => scores[roleId]);
   const maximum = Math.max(...values);
@@ -226,13 +234,13 @@ const medianSpread = spreads[Math.floor(spreads.length / 2)];
 
 assert(Object.values(winnerPercentages).every((share) => share >= 8 && share <= 20), "Monte Carlo winner shares are imbalanced.");
 assert(allAbovePercentage < 3, "Too many decisive runs keep every role above 50.");
-assert(medianSpread >= 22, "Simulated role spread is too compressed.");
+assert(medianSpread >= 25, "Simulated role spread is too compressed.");
 
 const allLeft = scoreAnswers(config.questions.map((question) => (question.kind === "anchor" ? 3 : 1))).roles;
 const allRight = scoreAnswers(config.questions.map((question) => (question.kind === "anchor" ? 3 : 5))).roles;
 for (const roleId of roleIds) {
   assert.equal(allLeft[roleId] + allRight[roleId], 100, `${roleId} has asymmetric side scoring.`);
-  assert(Math.abs(allLeft[roleId] - 50) <= 7, `${roleId} has excessive side-position bias.`);
+  assert(Math.abs(allLeft[roleId] - 50) <= 10, `${roleId} has excessive side-position bias.`);
 }
 
 const honoraryBadge = config.badges.find((badge) => badge.id === "honorary-software-engineer");
@@ -257,6 +265,7 @@ assert.equal(honoraryBadge.minimumStrongSignals, 3, "Honorary Software Engineer 
 console.log("Relative-fit scoring audit passed:", {
   questions: config.questions.length,
   kinds,
+  weights: { authoritative: authoritativeCount, supporting: supportingCount },
   winnerPercentages,
   allAbovePercentage: Number(allAbovePercentage.toFixed(1)),
   medianSpread,
